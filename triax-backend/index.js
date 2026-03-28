@@ -3,6 +3,7 @@ const cors = require('cors');
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { classificarPaciente } = require('./iaService'); // Importação da IA
 
 const app = express();
 const prisma = new PrismaClient();
@@ -75,17 +76,9 @@ app.post('/login', async (req, res) => {
   }
 });
 
-// Rota de teste
-app.get('/', (req, res) => {
-  res.send('Servidor do TRIAX está rodando perfeitamente com rotas de Login e Cadastro!');
-});
-
-const PORT = 3000;
-app.listen(PORT, () => {
-  console.log(`🚀 Servidor rodando na porta http://localhost:${PORT}`);
-});
-
-// ... (mantenha os imports e rotas de login/cadastro)
+// ==========================================
+// ROTAS DE TRIAGEM (COM IA INTEGRADA)
+// ==========================================
 
 // ROTA: Listar todas as triagens
 app.get('/triagens', async (req, res) => {
@@ -93,13 +86,37 @@ app.get('/triagens', async (req, res) => {
   res.json(triagens);
 });
 
-// ROTA: Criar nova triagem
+// ROTA: Criar nova triagem (COM INTELIGÊNCIA ARTIFICIAL)
 app.post('/triagens', async (req, res) => {
-  const { nome, pa, temp, sat, cor, iaScore, espera } = req.body;
-  const nova = await prisma.triagem.create({
-    data: { nome, pa, temp, sat, cor, iaScore, espera }
-  });
-  res.status(201).json(nova);
+  try {
+    // Apenas recebe os sinais vitais (A cor não vem mais do front-end)
+    const { nome, pa, temp, sat } = req.body;
+
+    // Converte os textos para números para a IA entender
+    const paSistolica = Number(pa.split('/')[0]) * 10; 
+    const temperaturaNum = Number(temp.replace(',', '.'));
+    const saturacaoNum = Number(sat.replace('%', ''));
+
+    // Chama o algoritmo KNN
+    const resultadoIA = classificarPaciente(paSistolica, temperaturaNum, saturacaoNum);
+
+    // Salva no banco de dados com a classificação da IA
+    const nova = await prisma.triagem.create({
+      data: { 
+        nome, 
+        pa, 
+        temp, 
+        sat, 
+        cor: resultadoIA.corPredita, 
+        iaScore: resultadoIA.iaScore 
+      }
+    });
+
+    res.status(201).json(nova);
+  } catch (error) {
+    console.error("Erro na classificação da IA:", error);
+    res.status(500).json({ error: "Erro interno ao processar triagem." });
+  }
 });
 
 // ROTA: Editar triagem existente
@@ -124,4 +141,17 @@ app.delete('/triagens/:id', async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: "Erro ao deletar triagem." });
   }
+});
+
+// Rota de teste
+app.get('/', (req, res) => {
+  res.send('Servidor do TRIAX rodando com IA Ativa!');
+});
+
+// ==========================================
+// INICIALIZAÇÃO DO SERVIDOR
+// ==========================================
+const PORT = 3000;
+app.listen(PORT, () => {
+  console.log(`🚀 Servidor rodando na porta http://localhost:${PORT}`);
 });

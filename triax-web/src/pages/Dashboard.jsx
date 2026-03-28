@@ -214,22 +214,20 @@ export default function Dashboard() {
         <div style={styles.modalOverlay}>
           <div style={styles.modalContent}>
             <h3 style={{ margin: 0 }}>{editId ? 'Editar Triagem' : 'Nova Triagem'}</h3>
+            <p style={{ fontSize: '12px', color: '#6B7280', marginBottom: '15px' }}>
+              A classificação de risco será gerada automaticamente pela IA.
+            </p>
             <form onSubmit={handleSalvarTriagem} style={styles.modalForm}>
               <input style={styles.modalInput} placeholder="Nome do Paciente" value={formData.nome} onChange={e => setFormData({...formData, nome: e.target.value})} required />
               <div style={styles.modalInputRow}>
                 <input style={styles.modalInput} placeholder="PA (ex: 12/8)" value={formData.pa} onChange={e => setFormData({...formData, pa: e.target.value})} required />
-                <input style={styles.modalInput} placeholder="Temp" value={formData.temp} onChange={e => setFormData({...formData, temp: e.target.value})} required />
-                <input style={styles.modalInput} placeholder="Sat" value={formData.sat} onChange={e => setFormData({...formData, sat: e.target.value})} required />
+                <input style={styles.modalInput} placeholder="Temp (ex: 37.5)" value={formData.temp} onChange={e => setFormData({...formData, temp: e.target.value})} required />
+                <input style={styles.modalInput} placeholder="Sat (ex: 98%)" value={formData.sat} onChange={e => setFormData({...formData, sat: e.target.value})} required />
               </div>
-              <select style={styles.modalInput} value={formData.cor} onChange={e => setFormData({...formData, cor: e.target.value})}>
-                <option value="#EF4444">Emergência (Vermelho)</option>
-                <option value="#F97316">Muito Urgente (Laranja)</option>
-                <option value="#EAB308">Urgente (Amarelo)</option>
-                <option value="#84CC16">Pouco Urgente (Verde)</option>
-              </select>
+              
               <div style={styles.modalButtons}>
                 <button type="button" onClick={() => setIsModalOpen(false)} style={styles.cancelBtn}>Cancelar</button>
-                <button type="submit" style={styles.saveBtn}>Salvar no Banco</button>
+                <button type="submit" style={styles.saveBtn}>Salvar e Classificar</button>
               </div>
             </form>
           </div>
@@ -281,7 +279,7 @@ const styles = {
   pieChart: { width: '120px', height: '120px', borderRadius: '50%', background: 'conic-gradient(#EF4444 0% 15%, #F97316 15% 35%, #EAB308 35% 60%, #84CC16 60% 100%)' },
   modalOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 },
   modalContent: { backgroundColor: '#FFF', padding: '30px', borderRadius: '12px', width: '480px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)', boxSizing: 'border-box' },
-  modalForm: { display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '20px' },
+  modalForm: { display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '10px' },
   modalInput: { padding: '12px', borderRadius: '8px', border: '1px solid #DDD', fontSize: '14px', width: '100%', boxSizing: 'border-box' },
   modalInputRow: { display: 'flex', gap: '10px', width: '100%' },
   modalButtons: { display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' },
