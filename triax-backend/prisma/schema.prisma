@@ -18,6 +18,7 @@ model User {
 model Triagem {
   id        Int      @id @default(autoincrement())
   nome      String
+  cpf       String?
   pa        String
   temp      String
   sat       String

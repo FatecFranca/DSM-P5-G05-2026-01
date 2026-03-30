@@ -77,7 +77,7 @@ app.post('/login', async (req, res) => {
 });
 
 // ==========================================
-// ROTAS DE TRIAGEM (COM IA INTEGRADA)
+// ROTAS DE TRIAGEM (COM IA INTEGRADA E CPF)
 // ==========================================
 
 // ROTA: Listar todas as triagens
@@ -89,8 +89,8 @@ app.get('/triagens', async (req, res) => {
 // ROTA: Criar nova triagem (COM INTELIGÊNCIA ARTIFICIAL)
 app.post('/triagens', async (req, res) => {
   try {
-    // Apenas recebe os sinais vitais (A cor não vem mais do front-end)
-    const { nome, pa, temp, sat } = req.body;
+    // Apenas recebe os sinais vitais e o CPF (A cor não vem mais do front-end)
+    const { nome, cpf, pa, temp, sat } = req.body;
 
     // Converte os textos para números para a IA entender
     const paSistolica = Number(pa.split('/')[0]) * 10; 
@@ -100,10 +100,11 @@ app.post('/triagens', async (req, res) => {
     // Chama o algoritmo KNN
     const resultadoIA = classificarPaciente(paSistolica, temperaturaNum, saturacaoNum);
 
-    // Salva no banco de dados com a classificação da IA
+    // Salva no banco de dados com a classificação da IA e o CPF
     const nova = await prisma.triagem.create({
       data: { 
         nome, 
+        cpf, // <-- CPF adicionado aqui
         pa, 
         temp, 
         sat, 
@@ -122,10 +123,11 @@ app.post('/triagens', async (req, res) => {
 // ROTA: Editar triagem existente
 app.put('/triagens/:id', async (req, res) => {
   const { id } = req.params;
-  const { nome, pa, temp, sat, cor, iaScore } = req.body;
+  const { nome, cpf, pa, temp, sat, cor, iaScore } = req.body; // <-- CPF adicionado aqui
+  
   const atualizada = await prisma.triagem.update({
     where: { id: Number(id) },
-    data: { nome, pa, temp, sat, cor, iaScore }
+    data: { nome, cpf, pa, temp, sat, cor, iaScore } // <-- CPF adicionado aqui
   });
   res.json(atualizada);
 });
