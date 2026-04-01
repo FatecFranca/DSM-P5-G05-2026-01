@@ -14,7 +14,6 @@ export default function Dashboard() {
   
   const [isRecalibrando, setIsRecalibrando] = useState(false);
 
-  // ESTADO ATUALIZADO COM O CPF
   const [formData, setFormData] = useState({
     nome: '', cpf: '', pa: '', temp: '', sat: '', cor: '#84CC16', iaScore: 100
   });
@@ -32,6 +31,7 @@ export default function Dashboard() {
       if (cor === '#F97316') minutosTotais += 15;
       if (cor === '#EAB308') minutosTotais += 30;
       if (cor === '#84CC16') minutosTotais += 60;
+      if (cor === '#3B82F6') minutosTotais += 120; // NOVO: Azul adiciona mais tempo
     }
     if (minutosTotais >= 60) {
       const horas = Math.floor(minutosTotais / 60);
@@ -70,7 +70,6 @@ export default function Dashboard() {
       }
       setIsModalOpen(false);
       setEditId(null);
-      // ZERA O CPF AO SALVAR
       setFormData({ nome: '', cpf: '', pa: '', temp: '', sat: '', cor: '#84CC16', iaScore: 100 });
       buscarPacientes();
     } catch (err) {
@@ -85,7 +84,6 @@ export default function Dashboard() {
 
   const handleNovaTriagem = () => {
     setEditId(null);
-    // ZERA O CPF NA NOVA TRIAGEM
     setFormData({ nome: '', cpf: '', pa: '', temp: '', sat: '', cor: '#84CC16', iaScore: 100 });
     setIsModalOpen(true);
   };
@@ -94,7 +92,7 @@ export default function Dashboard() {
     setEditId(paciente.id);
     setFormData({
       nome: paciente.nome,
-      cpf: paciente.cpf || '', // PUXA O CPF SE EXISTIR
+      cpf: paciente.cpf || '',
       pa: paciente.pa,
       temp: paciente.temp,
       sat: paciente.sat,
@@ -130,6 +128,7 @@ export default function Dashboard() {
         muitoUrgente: pacientes.filter(p => p.cor === '#F97316').length,
         urgente: pacientes.filter(p => p.cor === '#EAB308').length,
         poucoUrgente: pacientes.filter(p => p.cor === '#84CC16').length,
+        naoUrgente: pacientes.filter(p => p.cor === '#3B82F6').length, // AZUL NO RELATÓRIO
       },
       baseDeConhecimento: pacientes 
     };
@@ -181,8 +180,9 @@ export default function Dashboard() {
             <div class="box">
               <h3>Métricas da Base</h3>
               <p><b>Total Analisado:</b> ${pacientes.length} Registros</p>
-              <p><b>Emergências (Vermelho):</b> ${pacientes.filter(p => p.cor === '#EF4444').length}</p>
-              <p><b>Pouco Urgente (Verde):</b> ${pacientes.filter(p => p.cor === '#84CC16').length}</p>
+              <p><b>Emergências:</b> ${pacientes.filter(p => p.cor === '#EF4444').length}</p>
+              <p><b>Pouco Urgente:</b> ${pacientes.filter(p => p.cor === '#84CC16').length}</p>
+              <p><b>Não Urgente (Azul):</b> ${pacientes.filter(p => p.cor === '#3B82F6').length}</p>
             </div>
           </div>
 
@@ -199,8 +199,8 @@ export default function Dashboard() {
             </thead>
             <tbody>
               ${pacientes.map(p => {
-                let nomeCor = p.cor === '#EF4444' ? 'Emergência' : p.cor === '#F97316' ? 'Muito Urgente' : p.cor === '#EAB308' ? 'Urgente' : 'Pouco Urgente';
-                let corTexto = p.cor === '#FEF08A' ? '#000' : '#FFF';
+                let nomeCor = p.cor === '#EF4444' ? 'Emergência' : p.cor === '#F97316' ? 'Muito Urgente' : p.cor === '#EAB308' ? 'Urgente' : p.cor === '#84CC16' ? 'Pouco Urgente' : 'Não Urgente';
+                let corTexto = (p.cor === '#FEF08A' || p.cor === '#EAB308') ? '#000' : '#FFF';
                 return `
                 <tr>
                   <td>${new Date(p.createdAt || Date.now()).toLocaleDateString('pt-BR')}</td>
@@ -237,6 +237,9 @@ export default function Dashboard() {
         <div style={{...styles.card, backgroundColor: '#F97316'}}><h3 style={styles.cardNumber}>{pacientes.filter(p => p.cor === '#F97316').length}</h3><p style={styles.cardText}>Muito urgente</p></div>
         <div style={{...styles.card, backgroundColor: '#EAB308'}}><h3 style={styles.cardNumber}>{pacientes.filter(p => p.cor === '#EAB308').length}</h3><p style={styles.cardText}>Urgente</p></div>
         <div style={{...styles.card, backgroundColor: '#84CC16'}}><h3 style={styles.cardNumber}>{pacientes.filter(p => p.cor === '#84CC16').length}</h3><p style={styles.cardText}>Pouco urgente</p></div>
+        
+        {/* NOVO CARD AZUL ADICIONADO AQUI */}
+        <div style={{...styles.card, backgroundColor: '#3B82F6'}}><h3 style={styles.cardNumber}>{pacientes.filter(p => p.cor === '#3B82F6').length}</h3><p style={styles.cardText}>Não urgente</p></div>
       </div>
 
       <div style={styles.dashboardGrid}>
@@ -261,7 +264,6 @@ export default function Dashboard() {
                   <td style={styles.td}>
                     <b>{paciente.nome}</b><br/>
                     <small style={{ color: '#666', fontSize: '11px' }}>
-                      {/* EXIBE O CPF NA TABELA TAMBÉM */}
                       CPF: {paciente.cpf || 'Não informado'} | Espera estimada: {calcularEspera(index, pacientes)}
                     </small>
                   </td>
@@ -428,7 +430,6 @@ export default function Dashboard() {
             </p>
             <form onSubmit={handleSalvarTriagem} style={styles.modalForm}>
               
-              {/* LINHA COM NOME E CPF */}
               <div style={styles.modalInputRow}>
                 <input 
                   style={{...styles.modalInput, flex: 2}} 
@@ -443,29 +444,17 @@ export default function Dashboard() {
                   maxLength="14"
                   value={formData.cpf} 
                   onChange={e => {
-                    // 1. Remove qualquer letra ou símbolo, deixando SÓ os números
                     let val = e.target.value.replace(/\D/g, ''); 
-                    
-                    // 2. Trava impiedosamente no 11º número (evita falhas de digitação rápida)
-                    val = val.substring(0, 11); 
-                    
-                    // 3. Aplica a máscara progressiva (000.000.000-00)
-                    if (val.length > 9) {
-                      val = val.replace(/(\d{3})(\d{3})(\d{3})(\d{1,2})/, "$1.$2.$3-$4");
-                    } else if (val.length > 6) {
-                      val = val.replace(/(\d{3})(\d{3})(\d{1,3})/, "$1.$2.$3");
-                    } else if (val.length > 3) {
-                      val = val.replace(/(\d{3})(\d{1,3})/, "$1.$2");
-                    }
-                    
+                    if (val.length > 11) val = val.substring(0, 11); 
+                    if (val.length > 9) val = val.replace(/(\d{3})(\d{3})(\d{3})(\d{1,2})/, "$1.$2.$3-$4");
+                    else if (val.length > 6) val = val.replace(/(\d{3})(\d{3})(\d{1,3})/, "$1.$2.$3");
+                    else if (val.length > 3) val = val.replace(/(\d{3})(\d{1,3})/, "$1.$2");
                     setFormData({...formData, cpf: val});
                   }} 
                   required 
                 />
-                  
               </div>
               
-              {/* LINHA COM SINAIS VITAIS */}
               <div style={styles.modalInputRow}>
                 <input style={{...styles.modalInput, flex: 1}} placeholder="PA (ex: 12/8)" value={formData.pa} onChange={e => setFormData({...formData, pa: e.target.value})} required />
                 <input style={{...styles.modalInput, flex: 1}} placeholder="Temp (ex: 37.5)" value={formData.temp} onChange={e => setFormData({...formData, temp: e.target.value})} required />
@@ -505,8 +494,8 @@ const styles = {
   dateText: { fontSize: '15px', fontWeight: 'bold' },
   userIcon: { fontSize: '24px', cursor: 'pointer', backgroundColor: '#E5E7EB', borderRadius: '50%', padding: '8px' },
   pageTitle: { fontSize: '24px', fontWeight: 'bold', marginBottom: '20px' },
-  cardsContainer: { display: 'flex', gap: '20px', marginBottom: '30px' },
-  card: { flex: 1, borderRadius: '12px', padding: '20px', color: '#FFF', textAlign: 'center', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' },
+  cardsContainer: { display: 'flex', gap: '20px', marginBottom: '30px', flexWrap: 'wrap' },
+  card: { flex: '1 1 150px', borderRadius: '12px', padding: '20px', color: '#FFF', textAlign: 'center', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' },
   cardNumber: { fontSize: '36px', fontWeight: '900', margin: 0 },
   cardText: { fontSize: '16px', fontWeight: 'bold', margin: '5px 0 0 0' },
   dashboardGrid: { display: 'flex', gap: '25px', flexWrap: 'wrap' },
@@ -523,7 +512,10 @@ const styles = {
   lineChartContainer: { height: '100px', width: '100%', display: 'flex', alignItems: 'flex-end' },
   svgLine: { width: '100%', height: '100%' },
   pieChartWrapper: { display: 'flex', flexDirection: 'column', alignItems: 'center' },
-  pieChart: { width: '120px', height: '120px', borderRadius: '50%', background: 'conic-gradient(#EF4444 0% 15%, #F97316 15% 35%, #EAB308 35% 60%, #84CC16 60% 100%)' },
+  
+  // GRÁFICO ATUALIZADO COM O AZUL NO CONIC GRADIENT
+  pieChart: { width: '120px', height: '120px', borderRadius: '50%', background: 'conic-gradient(#EF4444 0% 10%, #F97316 10% 25%, #EAB308 25% 45%, #84CC16 45% 75%, #3B82F6 75% 100%)' },
+  
   modalOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 },
   modalContent: { backgroundColor: '#FFF', padding: '30px', borderRadius: '12px', width: '500px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)', boxSizing: 'border-box' },
   modalForm: { display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '10px' },
