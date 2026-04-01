@@ -1,57 +1,35 @@
-const KNN = require('ml-knn');
-
-// 1. DATASET DE TREINAMENTO (O "Conhecimento" da IA)
-// [Pressão Sistólica (alta), Temperatura, Saturação]
-
-const dadosTreinamento = [
-  // SINAIS NORMAIS -> VERDE (Classe 0)
-  [120, 36.5, 98], [110, 36.8, 99], [130, 37.0, 97], [125, 36.6, 98],
-  
-  // FEBRE/ALTERAÇÕES LEVES -> AMARELO (Classe 1)
-  [140, 38.5, 95], [110, 38.0, 96], [145, 37.5, 94], [135, 38.2, 95],
-  
-  // SINAIS GRAVES -> LARANJA (Classe 2)
-  [160, 39.5, 90], [170, 39.0, 91], [155, 39.8, 89], [90, 35.0, 90],
-  
-  // RISCO DE MORTE -> VERMELHO (Classe 3)
-  [190, 40.0, 85], [200, 41.0, 80], [80, 34.0, 82], [210, 39.5, 84]
-];
-
-// Rótulos correspondentes (0: Verde, 1: Amarelo, 2: Laranja, 3: Vermelho)
-const rotulosTreinamento = [
-  0, 0, 0, 0, // Verdes
-  1, 1, 1, 1, // Amarelos
-  2, 2, 2, 2, // Laranjas
-  3, 3, 3, 3  // Vermelhos
-];
-
-// INSTANCIAR E TREINAR O MODELO
-// k = 3 significa que ele vai olhar os 3 casos mais parecidos para tomar a decisão
-const modeloKNN = new KNN(dadosTreinamento, rotulosTreinamento, { k: 3 });
-
-// 3. FUNÇÃO QUE O SEU SERVIDOR VAI CHAMAR
 function classificarPaciente(paSistolica, temperatura, saturacao) {
-  // O modelo recebe os dados do paciente novo
-  const pacienteNovo = [Number(paSistolica), Number(temperatura), Number(saturacao)];
+  // Cores do Protocolo de Manchester
+  const VERMELHO = '#EF4444'; // Emergência (0 min)
+  const LARANJA = '#F97316';  // Muito Urgente (10 min)
+  const AMARELO = '#EAB308';  // Urgente (60 min)
+  const VERDE = '#84CC16';    // Pouco Urgente (120 min)
+  const AZUL = '#3B82F6';     // Não Urgente (240 min)
+
+  // 1. Regras de VERMELHO (Risco de Morte Imediato)
+  // Hipotermia severa, febre altíssima, saturação crítica ou PA em colapso/hipertensão severa
+  if (temperatura <= 34 || temperatura >= 40 || saturacao <= 89 || paSistolica <= 80 || paSistolica >= 220) {
+    return { corPredita: VERMELHO, iaScore: 98 };
+  }
   
-  // Faz a predição
-  const predicao = modeloKNN.predict(pacienteNovo);
+  // 2. Regras de LARANJA (Muito Urgente)
+  if ((temperatura > 34 && temperatura <= 35.5) || (temperatura >= 39 && temperatura < 40) || (saturacao >= 90 && saturacao <= 92) || (paSistolica > 80 && paSistolica <= 90) || (paSistolica >= 200 && paSistolica < 220)) {
+    return { corPredita: LARANJA, iaScore: 88 };
+  }
 
-  // Traduz o número de volta para as cores do seu Front-End
-  const dicionarioCores = {
-    0: '#84CC16', // Verde (Pouco Urgente)
-    1: '#EAB308', // Amarelo (Urgente)
-    2: '#F97316', // Laranja (Muito Urgente)
-    3: '#EF4444'  // Vermelho (Emergência)
-  };
+  // 3. Regras de AMARELO (Urgente)
+  if ((temperatura > 38.5 && temperatura < 39) || (saturacao >= 93 && saturacao <= 94) || (paSistolica >= 180 && paSistolica < 200)) {
+    return { corPredita: AMARELO, iaScore: 75 };
+  }
 
-  // Simula um Score de confiança baseado na gravidade (opcional para o seu painel)
-  const iaScore = predicao === 3 ? 99 : predicao === 2 ? 85 : predicao === 1 ? 60 : 40;
+  // 4. Regras de VERDE (Pouco Urgente)
+  if ((temperatura >= 37.5 && temperatura <= 38.5) || (saturacao >= 95 && saturacao <= 97) || (paSistolica >= 140 && paSistolica < 180)) {
+    return { corPredita: VERDE, iaScore: 82 };
+  }
 
-  return {
-    corPredita: dicionarioCores[predicao],
-    iaScore: iaScore
-  };
+  // 5. AZUL (Não Urgente)
+  // Sinais vitais dentro da normalidade: Temp ~36-37.4, Sat >= 98, PA 90-139
+  return { corPredita: AZUL, iaScore: 95 };
 }
 
 module.exports = { classificarPaciente };
