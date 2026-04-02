@@ -120,16 +120,36 @@ app.post('/triagens', async (req, res) => {
   }
 });
 
-// ROTA: Editar triagem existente
+// ROTA: Editar triagem existente (COM RECALCULO DA IA)
 app.put('/triagens/:id', async (req, res) => {
-  const { id } = req.params;
-  const { nome, cpf, pa, temp, sat, cor, iaScore } = req.body; // <-- CPF adicionado aqui
-  
-  const atualizada = await prisma.triagem.update({
-    where: { id: Number(id) },
-    data: { nome, cpf, pa, temp, sat, cor, iaScore } // <-- CPF adicionado aqui
-  });
-  res.json(atualizada);
+  try {
+    const { id } = req.params;
+    const { nome, cpf, pa, temp, sat } = req.body; 
+    
+    // Converte os textos para números para a IA entender
+    const paSistolica = Number(pa.split('/')[0]) * 10; 
+    const temperaturaNum = Number(String(temp).replace(',', '.'));
+    const saturacaoNum = Number(String(sat).replace('%', ''));
+
+    // Chama o algoritmo KNN para reavaliar o risco com os novos sinais
+    const resultadoIA = classificarPaciente(paSistolica, temperaturaNum, saturacaoNum);
+    
+    const atualizada = await prisma.triagem.update({
+      where: { id: Number(id) },
+      data: { 
+        nome, 
+        cpf, 
+        pa, 
+        temp, 
+        sat, 
+        cor: resultadoIA.corPredita, 
+        iaScore: resultadoIA.iaScore 
+      } 
+    });
+    res.json(atualizada);
+  } catch (error) {
+    res.status(500).json({ error: "Erro ao atualizar e reclassificar paciente." });
+  }
 });
 
 // ROTA: Deletar triagem
