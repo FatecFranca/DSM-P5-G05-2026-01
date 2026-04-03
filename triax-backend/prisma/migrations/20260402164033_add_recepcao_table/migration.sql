@@ -1,0 +1,8 @@
+-- CreateTable
+CREATE TABLE "Recepcao" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "nome" TEXT NOT NULL,
+    "cpf" TEXT NOT NULL,
+    "entrada" TEXT NOT NULL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

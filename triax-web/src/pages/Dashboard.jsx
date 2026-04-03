@@ -7,59 +7,106 @@ export default function Dashboard() {
   const navigate = useNavigate();
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [menuAtivo, setMenuAtivo] = useState('fila');
+  
+  // Estados do Banco (Pacientes Classificados)
   const [pacientes, setPacientes] = useState([]);
+  
+  // Estados da Fila de Recepção (Aguardando)
+  const [pacientesAguardando, setPacientesAguardando] = useState([]);
+  const [isRecepcaoModalOpen, setIsRecepcaoModalOpen] = useState(false);
+  const [recepcaoData, setRecepcaoData] = useState({ nome: '', cpf: '' });
+
+  // Estados do Formulário de Triagem
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editId, setEditId] = useState(null);
-  
-  const [isRecalibrando, setIsRecalibrando] = useState(false);
+  const [formData, setFormData] = useState({ idRecepcao: null, nome: '', cpf: '', pa: '', temp: '', sat: '', cor: '#84CC16', iaScore: 100 });
 
-  const [formData, setFormData] = useState({
-    nome: '', cpf: '', pa: '', temp: '', sat: '', cor: '#84CC16', iaScore: 100
-  });
+  const dataAtual = new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
 
-  const dataAtual = new Date().toLocaleDateString('pt-BR', {
-    day: 'numeric', month: 'long', year: 'numeric'
-  });
-
-  const calcularEspera = (index, lista) => {
-    if (index === 0) return "Imediato";
-    let minutosTotais = 0;
-    for (let i = 0; i < index; i++) {
-      const cor = lista[i].cor;
-      if (cor === '#EF4444') minutosTotais += 0;
-      if (cor === '#F97316') minutosTotais += 15;
-      if (cor === '#EAB308') minutosTotais += 30;
-      if (cor === '#84CC16') minutosTotais += 60;
-      if (cor === '#3B82F6') minutosTotais += 120; // NOVO: Azul adiciona mais tempo
-    }
-    if (minutosTotais >= 60) {
-      const horas = Math.floor(minutosTotais / 60);
-      const mins = minutosTotais % 60;
-      return `${horas}h ${mins > 0 ? mins + 'min' : ''}`;
-    }
-    return `${minutosTotais} min`;
-  };
-
+  // ==========================================
+  // SINCRONIZAÇÃO EM TEMPO REAL (POLLING)
+  // ==========================================
   useEffect(() => {
     buscarPacientes();
     
+    // O "Radar": a cada 3 segundos ele busca dados novos do banco
+    const interval = setInterval(() => {
+      buscarPacientes();
+    }, 3000);
+
     const handleKeyDown = (e) => {
-      if (e.altKey && e.key.toLowerCase() === 'n') handleNovaTriagem();
+      if (e.altKey && e.key.toLowerCase() === 'n') abrirNovaTriagem();
     };
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
   }, []);
 
   const buscarPacientes = async () => {
     try {
-      const res = await axios.get('http://localhost:3000/triagens');
-      setPacientes(res.data);
+      const resTriagens = await axios.get('http://localhost:3000/triagens');
+      setPacientes(resTriagens.data);
+
+      // Busca também a fila de recepção do banco
+      const resRecepcao = await axios.get('http://localhost:3000/recepcao');
+      setPacientesAguardando(resRecepcao.data);
     } catch (err) {
-      console.error("Erro ao carregar banco de dados relacional", err);
+      console.error("Erro ao carregar banco de dados", err);
     }
   };
 
+  // ==========================================
+  // MÁSCARA DE CPF
+  // ==========================================
+  const aplicarMascaraCPF = (valor) => {
+    let val = valor.replace(/\D/g, ''); 
+    if (val.length > 11) val = val.substring(0, 11); 
+    if (val.length > 9) val = val.replace(/(\d{3})(\d{3})(\d{3})(\d{1,2})/, "$1.$2.$3-$4");
+    else if (val.length > 6) val = val.replace(/(\d{3})(\d{3})(\d{1,3})/, "$1.$2.$3");
+    else if (val.length > 3) val = val.replace(/(\d{3})(\d{1,3})/, "$1.$2");
+    return val;
+  };
+
+  // ==========================================
+  // FUNÇÕES DA RECEPÇÃO
+  // ==========================================
+  const handleAdicionarRecepcao = async (e) => {
+    e.preventDefault();
+    if (!recepcaoData.nome || !recepcaoData.cpf) return alert('O nome e o CPF são obrigatórios!');
+
+    const agora = new Date();
+    const horas = String(agora.getHours()).padStart(2, '0');
+    const minutos = String(agora.getMinutes()).padStart(2, '0');
+
+    try {
+      // Salva no banco de dados via API
+      await axios.post('http://localhost:3000/recepcao', {
+        nome: recepcaoData.nome,
+        cpf: recepcaoData.cpf,
+        entrada: `${horas}:${minutos}`
+      });
+      
+      setRecepcaoData({ nome: '', cpf: '' });
+      setIsRecepcaoModalOpen(false);
+      buscarPacientes(); // Atualiza a tela
+    } catch (err) {
+      alert("Erro ao adicionar na fila do banco de dados.");
+    }
+  };
+
+  const iniciarTriagem = (paciente) => {
+    setEditId(null);
+    // Puxa o ID da recepção para podermos deletar ele depois
+    setFormData({ idRecepcao: paciente.id, nome: paciente.nome, cpf: paciente.cpf || '', pa: '', temp: '', sat: '', cor: '#84CC16', iaScore: 100 });
+    setIsModalOpen(true);
+  };
+
+  // ==========================================
+  // FUNÇÕES DE TRIAGEM
+  // ==========================================
   const handleSalvarTriagem = async (e) => {
     e.preventDefault();
     try {
@@ -67,165 +114,38 @@ export default function Dashboard() {
         await axios.put(`http://localhost:3000/triagens/${editId}`, formData);
       } else {
         await axios.post('http://localhost:3000/triagens', formData);
+        
+        // Se o paciente veio da recepção, exclui ele da fila de espera do banco
+        if (formData.idRecepcao) {
+          await axios.delete(`http://localhost:3000/recepcao/${formData.idRecepcao}`);
+        }
       }
       setIsModalOpen(false);
       setEditId(null);
-      setFormData({ nome: '', cpf: '', pa: '', temp: '', sat: '', cor: '#84CC16', iaScore: 100 });
+      setFormData({ idRecepcao: null, nome: '', cpf: '', pa: '', temp: '', sat: '', cor: '#84CC16', iaScore: 100 });
       buscarPacientes();
     } catch (err) {
       alert("Erro ao salvar no banco de dados.");
     }
   };
 
-  const handleSair = () => {
-    localStorage.removeItem('tokenTriax');
-    navigate('/');
-  };
-
-  const handleNovaTriagem = () => {
+  const abrirNovaTriagem = () => {
     setEditId(null);
-    setFormData({ nome: '', cpf: '', pa: '', temp: '', sat: '', cor: '#84CC16', iaScore: 100 });
+    setFormData({ idRecepcao: null, nome: '', cpf: '', pa: '', temp: '', sat: '', cor: '#84CC16', iaScore: 100 });
     setIsModalOpen(true);
   };
 
   const handleEditarPaciente = (paciente) => {
     setEditId(paciente.id);
     setFormData({
-      nome: paciente.nome,
-      cpf: paciente.cpf || '',
-      pa: paciente.pa,
-      temp: paciente.temp,
-      sat: paciente.sat,
-      cor: paciente.cor,
-      iaScore: paciente.iaScore
+      idRecepcao: null, nome: paciente.nome, cpf: paciente.cpf || '', pa: paciente.pa, temp: paciente.temp, sat: paciente.sat, cor: paciente.cor, iaScore: paciente.iaScore
     });
     setIsModalOpen(true);
   };
 
-  const handleRecalibrarIA = async () => {
-    setIsRecalibrando(true);
-    try {
-      setTimeout(() => {
-        setIsRecalibrando(false);
-        alert(`✅ IA Recalibrada com sucesso!\nO modelo KNN processou ${pacientes.length} registros do banco SQLite para atualizar seus K-vizinhos.`);
-      }, 2500);
-    } catch (err) {
-      console.error(err);
-      setIsRecalibrando(false);
-      alert("Erro ao tentar comunicar com o motor da IA.");
-    }
-  };
-
-  const handleBaixarRelatorioJSON = () => {
-    const relatorio = {
-      dataGeracao: new Date().toLocaleString('pt-BR'),
-      motorIA: "K-Nearest Neighbors (KNN)",
-      status: "Operacional",
-      confiancaMedia: "94.2%",
-      metricasAtuais: {
-        totalPacientesAnalisados: pacientes.length,
-        emergencia: pacientes.filter(p => p.cor === '#EF4444').length,
-        muitoUrgente: pacientes.filter(p => p.cor === '#F97316').length,
-        urgente: pacientes.filter(p => p.cor === '#EAB308').length,
-        poucoUrgente: pacientes.filter(p => p.cor === '#84CC16').length,
-        naoUrgente: pacientes.filter(p => p.cor === '#3B82F6').length, // AZUL NO RELATÓRIO
-      },
-      baseDeConhecimento: pacientes 
-    };
-
-    const jsonString = JSON.stringify(relatorio, null, 2);
-    const blob = new Blob([jsonString], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `triax_relatorio_ia_${new Date().getTime()}.json`;
-    document.body.appendChild(link);
-    link.click();
-    
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
-
-  const handleBaixarRelatorioPDF = () => {
-    const conteudoHTML = `
-      <html>
-        <head>
-          <title>Relatório TRIAX-IA - PDF</title>
-          <style>
-            body { font-family: 'Arial', sans-serif; padding: 40px; color: #333; }
-            h1 { color: #168C8C; border-bottom: 2px solid #168C8C; padding-bottom: 10px; margin-bottom: 5px;}
-            .subtitle { color: #666; font-size: 14px; margin-bottom: 30px; }
-            .metricas-container { display: flex; gap: 20px; margin-bottom: 30px; }
-            .box { background-color: #F3F4F6; padding: 20px; border-radius: 8px; flex: 1; }
-            h3 { color: #111827; margin-top: 0; }
-            table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
-            th, td { border: 1px solid #E5E7EB; padding: 12px; text-align: left; }
-            th { background-color: #168C8C; color: white; }
-            tr:nth-child(even) { background-color: #F9FAFB; }
-            .badge { padding: 4px 8px; border-radius: 4px; color: white; font-weight: bold; font-size: 12px; }
-          </style>
-        </head>
-        <body>
-          <h1>Relatório de Desempenho - TRIAX IA</h1>
-          <p class="subtitle">Gerado em: ${new Date().toLocaleString('pt-BR')} | Motor: K-Nearest Neighbors (KNN)</p>
-
-          <div class="metricas-container">
-            <div class="box">
-              <h3>Status do Modelo</h3>
-              <p><b>Status:</b> Operacional</p>
-              <p><b>Confiança Média:</b> 94.2%</p>
-              <p><b>Banco de Dados:</b> SQLite Relacional</p>
-            </div>
-            <div class="box">
-              <h3>Métricas da Base</h3>
-              <p><b>Total Analisado:</b> ${pacientes.length} Registros</p>
-              <p><b>Emergências:</b> ${pacientes.filter(p => p.cor === '#EF4444').length}</p>
-              <p><b>Pouco Urgente:</b> ${pacientes.filter(p => p.cor === '#84CC16').length}</p>
-              <p><b>Não Urgente (Azul):</b> ${pacientes.filter(p => p.cor === '#3B82F6').length}</p>
-            </div>
-          </div>
-
-          <h3>Auditoria da Base de Conhecimento</h3>
-          <table>
-            <thead>
-              <tr>
-                <th>Data</th>
-                <th>Paciente</th>
-                <th>Sinais (PA / Temp / Sat)</th>
-                <th>Classificação IA</th>
-                <th>Score</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${pacientes.map(p => {
-                let nomeCor = p.cor === '#EF4444' ? 'Emergência' : p.cor === '#F97316' ? 'Muito Urgente' : p.cor === '#EAB308' ? 'Urgente' : p.cor === '#84CC16' ? 'Pouco Urgente' : 'Não Urgente';
-                let corTexto = (p.cor === '#FEF08A' || p.cor === '#EAB308') ? '#000' : '#FFF';
-                return `
-                <tr>
-                  <td>${new Date(p.createdAt || Date.now()).toLocaleDateString('pt-BR')}</td>
-                  <td><b>${p.nome}</b><br><small>CPF: ${p.cpf || 'N/A'}</small></td>
-                  <td>${p.pa} | ${p.temp} | ${p.sat}</td>
-                  <td><span class="badge" style="background-color: ${p.cor}; color: ${corTexto}">${nomeCor}</span></td>
-                  <td>${p.iaScore}%</td>
-                </tr>
-              `}).join('')}
-            </tbody>
-          </table>
-
-          <script>
-            window.onload = function() {
-              window.print();
-              setTimeout(() => window.close(), 500);
-            };
-          </script>
-        </body>
-      </html>
-    `;
-
-    const janelaPDF = window.open('', '', 'width=800,height=600');
-    janelaPDF.document.write(conteudoHTML);
-    janelaPDF.document.close();
+  const handleSair = () => {
+    localStorage.removeItem('tokenTriax');
+    navigate('/');
   };
 
   const renderFilaAtiva = () => (
@@ -237,47 +157,83 @@ export default function Dashboard() {
         <div style={{...styles.card, backgroundColor: '#F97316'}}><h3 style={styles.cardNumber}>{pacientes.filter(p => p.cor === '#F97316').length}</h3><p style={styles.cardText}>Muito urgente</p></div>
         <div style={{...styles.card, backgroundColor: '#EAB308'}}><h3 style={styles.cardNumber}>{pacientes.filter(p => p.cor === '#EAB308').length}</h3><p style={styles.cardText}>Urgente</p></div>
         <div style={{...styles.card, backgroundColor: '#84CC16'}}><h3 style={styles.cardNumber}>{pacientes.filter(p => p.cor === '#84CC16').length}</h3><p style={styles.cardText}>Pouco urgente</p></div>
-        
-        {/* NOVO CARD AZUL ADICIONADO AQUI */}
         <div style={{...styles.card, backgroundColor: '#3B82F6'}}><h3 style={styles.cardNumber}>{pacientes.filter(p => p.cor === '#3B82F6').length}</h3><p style={styles.cardText}>Não urgente</p></div>
       </div>
 
       <div style={styles.dashboardGrid}>
-        <div style={styles.tableSection}>
-          <h3 style={styles.sectionTitle}>Fila de Atendimento</h3>
-          <table style={styles.table}>
-            <thead>
-              <tr style={styles.tableHeader}>
-                <th style={styles.th}>Triagem</th>
-                <th style={styles.th}>Paciente</th>
-                <th style={styles.th}>PA</th>
-                <th style={styles.th}>Temp</th>
-                <th style={styles.th}>Sat</th>
-                <th style={styles.th}>IA</th>
-                <th style={{...styles.th, textAlign: 'center'}}>Editar</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pacientes.map((paciente, index) => (
-                <tr key={paciente.id} style={{...styles.tableRow, backgroundColor: paciente.iaScore <= 60 ? '#FEF08A' : '#FFF'}}>
-                  <td style={styles.td}><div style={{...styles.statusDot, backgroundColor: paciente.cor}}></div></td>
-                  <td style={styles.td}>
-                    <b>{paciente.nome}</b><br/>
-                    <small style={{ color: '#666', fontSize: '11px' }}>
-                      CPF: {paciente.cpf || 'Não informado'} | Espera estimada: {calcularEspera(index, pacientes)}
-                    </small>
-                  </td>
-                  <td style={styles.td}>{paciente.pa}</td>
-                  <td style={styles.td}>{paciente.temp}</td>
-                  <td style={styles.td}>{paciente.sat}</td>
-                  <td style={styles.td}>{paciente.iaScore}%</td>
-                  <td style={{...styles.td, textAlign: 'center', cursor: 'pointer', fontSize: '20px'}} onClick={() => handleEditarPaciente(paciente)}>✎</td>
+        
+        {/* LADO ESQUERDO: LISTAS */}
+        <div style={styles.listsColumn}>
+          
+          {/* SEÇÃO: AGUARDANDO TRIAGEM */}
+          <div style={styles.tableSection}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+              <h3 style={styles.sectionTitle}>Aguardando Triagem (Recepção)</h3>
+              <button style={styles.addBtn} onClick={() => setIsRecepcaoModalOpen(true)}>+ Adicionar Fila</button>
+            </div>
+            
+            <table style={styles.table}>
+              <thead>
+                <tr style={styles.tableHeader}>
+                  <th style={styles.th}>Entrada</th>
+                  <th style={styles.th}>Paciente</th>
+                  <th style={{...styles.th, textAlign: 'right'}}>Ação</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {pacientesAguardando.length === 0 ? (
+                  <tr><td colSpan="3" style={{ textAlign: 'center', padding: '20px', color: '#999' }}>Nenhum paciente aguardando.</td></tr>
+                ) : (
+                  pacientesAguardando.map((paciente) => (
+                    <tr key={paciente.id} style={styles.tableRow}>
+                      <td style={styles.td}><b>{paciente.entrada}</b></td>
+                      <td style={styles.td}>{paciente.nome}<br/><small style={{ color: '#666' }}>CPF: {paciente.cpf || 'N/A'}</small></td>
+                      <td style={{...styles.td, textAlign: 'right'}}>
+                        <button style={styles.triarBtn} onClick={() => iniciarTriagem(paciente)}>[ TRIAR ]</button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* SEÇÃO: PACIENTES CLASSIFICADOS */}
+          <div style={{...styles.tableSection, marginTop: '25px'}}>
+            <h3 style={styles.sectionTitle}>Pacientes Classificados</h3>
+            <table style={styles.table}>
+              <thead>
+                <tr style={styles.tableHeader}>
+                  <th style={styles.th}>Risco</th>
+                  <th style={styles.th}>Paciente</th>
+                  <th style={styles.th}>PA</th>
+                  <th style={styles.th}>Temp</th>
+                  <th style={styles.th}>Sat</th>
+                  <th style={styles.th}>IA Score</th>
+                  <th style={{...styles.th, textAlign: 'center'}}>Editar</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pacientes.map((paciente) => (
+                  <tr key={paciente.id} style={styles.tableRow}>
+                    <td style={styles.td}><div style={{...styles.statusDot, backgroundColor: paciente.cor}}></div></td>
+                    <td style={styles.td}>
+                      <b>{paciente.nome}</b><br/>
+                      <small style={{ color: '#666' }}>CPF: {paciente.cpf || 'Não informado'}</small>
+                    </td>
+                    <td style={styles.td}>{paciente.pa}</td>
+                    <td style={styles.td}>{paciente.temp}°C</td>
+                    <td style={styles.td}>{paciente.sat}%</td>
+                    <td style={{...styles.td, fontWeight: 'bold', color: '#168C8C'}}>{paciente.iaScore}%</td>
+                    <td style={{...styles.td, textAlign: 'center', cursor: 'pointer', fontSize: '20px'}} onClick={() => handleEditarPaciente(paciente)}>✎</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
 
+        {/* LADO DIREITO: GRÁFICOS */}
         <div style={styles.chartsSection}>
           <div style={styles.chartBox}>
             <h4 style={styles.chartTitle}>Tempo Médio por Risco</h4>
@@ -294,111 +250,21 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
+
       </div>
     </>
   );
 
-  const renderIAConfig = () => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
-      
-      <div>
-        <h3 style={{ fontSize: '22px', fontWeight: 'bold', color: '#111827', margin: '0 0 5px 0' }}>
-          Motor de Classificação (TRIAX-IA)
-        </h3>
-        <p style={{ color: '#6B7280', margin: 0, fontSize: '15px' }}>
-          Monitoramento em tempo real do algoritmo de Aprendizado de Máquina.
-        </p>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
-        
-        <div style={styles.chartBox}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-            <h4 style={{ margin: 0, color: '#4B5563', fontSize: '16px' }}>Status do Serviço</h4>
-            <span style={{ backgroundColor: '#DEF7EC', color: '#03543F', padding: '5px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ width: '8px', height: '8px', backgroundColor: '#059669', borderRadius: '50%' }}></span> Online
-            </span>
-          </div>
-          <p style={{ margin: '8px 0', fontSize: '14px', color: '#374151' }}>Algoritmo: <b style={{ color: '#168C8C' }}>K-Nearest Neighbors (KNN)</b></p>
-          <p style={{ margin: '8px 0', fontSize: '14px', color: '#374151' }}>Hospedagem: <b>Local (Próx: Nuvem Pública)</b></p>
-        </div>
-
-        <div style={styles.chartBox}>
-          <h4 style={{ margin: '0 0 10px 0', color: '#4B5563', fontSize: '16px' }}>Acurácia do Modelo</h4>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px' }}>
-            <span style={{ fontSize: '38px', fontWeight: '900', color: '#168C8C' }}>94.2%</span>
-            <span style={{ fontSize: '14px', color: '#059669', fontWeight: 'bold' }}>↑ 1.2%</span>
-          </div>
-          <p style={{ margin: '5px 0 0 0', fontSize: '12px', color: '#9CA3AF' }}>Margem de erro dentro do aceitável (± 5%)</p>
-        </div>
-
-        <div style={styles.chartBox}>
-          <h4 style={{ margin: '0 0 15px 0', color: '#4B5563', fontSize: '16px' }}>Base de Conhecimento</h4>
-          <p style={{ margin: '8px 0', fontSize: '14px', color: '#374151' }}>Banco de Dados: <b style={{ color: '#0284C7' }}>SQLite (Relacional)</b></p>
-          <p style={{ margin: '8px 0', fontSize: '14px', color: '#374151' }}>Volume de Triagens: <b>{pacientes.length} Registros</b></p>
-        </div>
-
-      </div>
-
-      <div style={{ ...styles.chartBox, borderLeft: '5px solid #168C8C' }}>
-        <h4 style={{ margin: '0 0 15px 0', color: '#111827', fontSize: '18px' }}>Painel de Manutenção</h4>
-        <p style={{ fontSize: '14px', color: '#4B5563', marginBottom: '25px', lineHeight: '1.6', maxWidth: '800px' }}>
-          A recalibragem reavalia os "K-vizinhos" do modelo utilizando os dados mais recentes inseridos no banco relacional. 
-          Isso garante que a IA continue aprendendo e melhorando sua classificação com o passar do tempo.
-        </p>
-        <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
-          <button 
-            style={{ 
-              padding: '12px 24px', 
-              borderRadius: '8px', 
-              border: 'none', 
-              cursor: isRecalibrando ? 'not-allowed' : 'pointer', 
-              backgroundColor: '#168C8C', 
-              color: '#FFF', 
-              fontWeight: 'bold', 
-              fontSize: '14px', 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '8px',
-              opacity: isRecalibrando ? 0.7 : 1
-            }} 
-            onClick={handleRecalibrarIA}
-            disabled={isRecalibrando}
-          >
-            {isRecalibrando ? '⏳ Sincronizando pesos...' : '⚙️ Recalibrar Modelo IA'}
-          </button>
-          
-          <button 
-            style={{ padding: '12px 24px', borderRadius: '8px', border: '1px solid #D1D5DB', cursor: 'pointer', backgroundColor: '#FFF', color: '#374151', fontWeight: 'bold', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px' }} 
-            onClick={handleBaixarRelatorioJSON}
-          >
-            {"{ }"} Baixar JSON
-          </button>
-
-          <button 
-            style={{ padding: '12px 24px', borderRadius: '8px', border: 'none', cursor: 'pointer', backgroundColor: '#EF4444', color: '#FFF', fontWeight: 'bold', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px' }} 
-            onClick={handleBaixarRelatorioPDF}
-          >
-            📄 Baixar Relatório (PDF)
-          </button>
-        </div>
-      </div>
-
-    </div>
-  );
-
   return (
     <div style={styles.appContainer}>
-      {isSidebarOpen && <div style={styles.overlay} onClick={() => setIsSidebarOpen(false)}></div>}
       <aside style={{...styles.sidebar, left: isSidebarOpen ? '0' : '-300px'}}>
         <div style={styles.sidebarHeader}>
           <img src={logoTriax} alt="TRIAX" style={styles.logoSidebar} />
           <button style={styles.closeBtn} onClick={() => setIsSidebarOpen(false)}>✕</button>
         </div>
         <nav style={styles.navMenu}>
-          <div style={{...styles.navItem, ...(menuAtivo === 'fila' ? styles.navItemAtivo : {})}} onClick={() => { setMenuAtivo('fila'); setIsSidebarOpen(false); }}> Fila Ativa</div>
-          <div style={styles.navItem} onClick={() => navigate('/historico')}> Histórico</div>
-          <div style={{...styles.navItem, ...(menuAtivo === 'ia' ? styles.navItemAtivo : {})}} onClick={() => { setMenuAtivo('ia'); setIsSidebarOpen(false); }}> Configurações IA</div>
+          <div style={{...styles.navItem, ...styles.navItemAtivo}}> Fila Ativa</div>
+          <div style={styles.navItem}> Histórico</div>
         </nav>
       </aside>
 
@@ -414,53 +280,26 @@ export default function Dashboard() {
           </div>
         </header>
 
-        
-        {menuAtivo === 'fila' && renderFilaAtiva()}
-        {menuAtivo === 'ia' && renderIAConfig()}
+        {renderFilaAtiva()}
 
       </main>
 
-      {/* MODAL DE FORMULÁRIO */}
+      {/* MODAL: NOVA TRIAGEM (IA) */}
       {isModalOpen && (
         <div style={styles.modalOverlay}>
           <div style={styles.modalContent}>
             <h3 style={{ margin: 0 }}>{editId ? 'Editar Triagem' : 'Nova Triagem'}</h3>
-            <p style={{ fontSize: '12px', color: '#6B7280', marginBottom: '15px' }}>
-              🤖 A classificação de risco será gerada automaticamente pela IA.
-            </p>
+            <p style={{ fontSize: '12px', color: '#6B7280', marginBottom: '15px' }}>🤖 A IA fará a classificação automaticamente.</p>
             <form onSubmit={handleSalvarTriagem} style={styles.modalForm}>
-              
               <div style={styles.modalInputRow}>
-                <input 
-                  style={{...styles.modalInput, flex: 2}} 
-                  placeholder="Nome do Paciente" 
-                  value={formData.nome} 
-                  onChange={e => setFormData({...formData, nome: e.target.value})} 
-                  required 
-                />
-                <input 
-                  style={{...styles.modalInput, flex: 1}} 
-                  placeholder="CPF" 
-                  maxLength="14"
-                  value={formData.cpf} 
-                  onChange={e => {
-                    let val = e.target.value.replace(/\D/g, ''); 
-                    if (val.length > 11) val = val.substring(0, 11); 
-                    if (val.length > 9) val = val.replace(/(\d{3})(\d{3})(\d{3})(\d{1,2})/, "$1.$2.$3-$4");
-                    else if (val.length > 6) val = val.replace(/(\d{3})(\d{3})(\d{1,3})/, "$1.$2.$3");
-                    else if (val.length > 3) val = val.replace(/(\d{3})(\d{1,3})/, "$1.$2");
-                    setFormData({...formData, cpf: val});
-                  }} 
-                  required 
-                />
+                <input style={{...styles.modalInput, flex: 2}} placeholder="Nome Completo" value={formData.nome} onChange={e => setFormData({...formData, nome: e.target.value})} required />
+                <input style={{...styles.modalInput, flex: 1}} placeholder="CPF" maxLength="14" value={formData.cpf} onChange={e => setFormData({...formData, cpf: aplicarMascaraCPF(e.target.value)})} required />
               </div>
-              
               <div style={styles.modalInputRow}>
                 <input style={{...styles.modalInput, flex: 1}} placeholder="PA (ex: 12/8)" value={formData.pa} onChange={e => setFormData({...formData, pa: e.target.value})} required />
-                <input style={{...styles.modalInput, flex: 1}} placeholder="Temp (ex: 37.5)" value={formData.temp} onChange={e => setFormData({...formData, temp: e.target.value})} required />
-                <input style={{...styles.modalInput, flex: 1}} placeholder="Sat (ex: 98%)" value={formData.sat} onChange={e => setFormData({...formData, sat: e.target.value})} required />
+                <input style={{...styles.modalInput, flex: 1}} placeholder="Temp (°C)" value={formData.temp} onChange={e => setFormData({...formData, temp: e.target.value})} required />
+                <input style={{...styles.modalInput, flex: 1}} placeholder="Sat (%)" value={formData.sat} onChange={e => setFormData({...formData, sat: e.target.value})} required />
               </div>
-              
               <div style={styles.modalButtons}>
                 <button type="button" onClick={() => setIsModalOpen(false)} style={styles.cancelBtn}>Cancelar</button>
                 <button type="submit" style={styles.saveBtn}>Salvar e Classificar</button>
@@ -470,14 +309,33 @@ export default function Dashboard() {
         </div>
       )}
 
-      <button style={styles.fabButton} onClick={handleNovaTriagem} title="Nova Triagem (Alt+N)">+</button>
+      {/* MODAL: RECEPÇÃO (Aguardando Triagem) */}
+      {isRecepcaoModalOpen && (
+        <div style={styles.modalOverlay}>
+          <div style={{...styles.modalContent, width: '400px'}}>
+            <h3 style={{ margin: '0 0 15px 0' }}>Recepção - Adicionar Fila</h3>
+            <form onSubmit={handleAdicionarRecepcao} style={styles.modalForm}>
+              <input style={styles.modalInput} placeholder="Nome Completo" value={recepcaoData.nome} onChange={e => setRecepcaoData({...recepcaoData, nome: e.target.value})} required />
+              
+              {/* INPUT COM MÁSCARA E OBRIGATÓRIO (REQUIRED) */}
+              <input style={styles.modalInput} placeholder="CPF" maxLength="14" value={recepcaoData.cpf} onChange={e => setRecepcaoData({...recepcaoData, cpf: aplicarMascaraCPF(e.target.value)})} required />
+              
+              <div style={styles.modalButtons}>
+                <button type="button" onClick={() => setIsRecepcaoModalOpen(false)} style={styles.cancelBtn}>Cancelar</button>
+                <button type="submit" style={styles.saveBtn}>Salvar na Fila</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      <button style={styles.fabButton} onClick={abrirNovaTriagem} title="Nova Triagem Avulsa">+</button>
     </div>
   );
 }
 
 const styles = {
   appContainer: { display: 'flex', minHeight: '100vh', backgroundColor: '#F3F4F6', fontFamily: 'Arial, sans-serif' },
-  overlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)', zIndex: 99 },
   sidebar: { position: 'fixed', top: 0, bottom: 0, width: '280px', backgroundColor: '#FFF', zIndex: 100, transition: 'left 0.3s ease', display: 'flex', flexDirection: 'column', boxShadow: '2px 0 10px rgba(0,0,0,0.1)' },
   sidebarHeader: { padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #E5E7EB' },
   logoSidebar: { height: '35px' },
@@ -489,36 +347,42 @@ const styles = {
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px', backgroundColor: '#FFF', padding: '15px 25px', borderRadius: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' },
   headerLeft: { display: 'flex', alignItems: 'center', gap: '20px' },
   menuIcon: { fontSize: '28px', cursor: 'pointer' },
-  logoImage: { height: '75px', marginTop: '10px' },
+  logoImage: { height: '50px', marginTop: '5px' },
   headerRight: { display: 'flex', alignItems: 'center', gap: '20px' },
   dateText: { fontSize: '15px', fontWeight: 'bold' },
   userIcon: { fontSize: '24px', cursor: 'pointer', backgroundColor: '#E5E7EB', borderRadius: '50%', padding: '8px' },
-  pageTitle: { fontSize: '24px', fontWeight: 'bold', marginBottom: '20px' },
-  cardsContainer: { display: 'flex', gap: '20px', marginBottom: '30px', flexWrap: 'wrap' },
-  card: { flex: '1 1 150px', borderRadius: '12px', padding: '20px', color: '#FFF', textAlign: 'center', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' },
+  pageTitle: { fontSize: '24px', fontWeight: 'bold', marginBottom: '20px', color: '#111827' },
+  
+  cardsContainer: { display: 'flex', gap: '15px', marginBottom: '30px', flexWrap: 'wrap' },
+  card: { flex: '1 1 120px', borderRadius: '12px', padding: '20px', color: '#FFF', textAlign: 'center', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' },
   cardNumber: { fontSize: '36px', fontWeight: '900', margin: 0 },
-  cardText: { fontSize: '16px', fontWeight: 'bold', margin: '5px 0 0 0' },
+  cardText: { fontSize: '14px', fontWeight: 'bold', margin: '5px 0 0 0' },
+  
   dashboardGrid: { display: 'flex', gap: '25px', flexWrap: 'wrap' },
-  tableSection: { flex: '2 1 600px', backgroundColor: '#FFF', borderRadius: '12px', padding: '25px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)' },
-  sectionTitle: { fontSize: '18px', fontWeight: 'bold', marginBottom: '20px' },
-  table: { width: '100%', borderCollapse: 'collapse' },
-  th: { padding: '15px 10px', fontSize: '14px', color: '#6B7280', textAlign: 'left', borderBottom: '2px solid #E5E7EB' },
+  listsColumn: { flex: '2 1 600px', display: 'flex', flexDirection: 'column' },
+  
+  tableSection: { backgroundColor: '#FFF', borderRadius: '12px', padding: '25px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)' },
+  sectionTitle: { fontSize: '18px', fontWeight: 'bold', margin: 0, color: '#374151' },
+  addBtn: { backgroundColor: '#E0F2FE', color: '#0284C7', border: 'none', padding: '8px 15px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' },
+  triarBtn: { backgroundColor: '#F3F4F6', color: '#374151', border: '1px solid #D1D5DB', padding: '5px 12px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' },
+  
+  table: { width: '100%', borderCollapse: 'collapse', marginTop: '10px' },
+  th: { padding: '12px 10px', fontSize: '14px', color: '#6B7280', textAlign: 'left', borderBottom: '2px solid #E5E7EB' },
   tableRow: { borderBottom: '1px solid #E5E7EB' },
-  td: { padding: '15px 10px', fontSize: '15px' },
+  td: { padding: '12px 10px', fontSize: '14px' },
   statusDot: { width: '16px', height: '16px', borderRadius: '50%' },
+  
   chartsSection: { flex: '1 1 300px', display: 'flex', flexDirection: 'column', gap: '20px' },
   chartBox: { backgroundColor: '#FFF', borderRadius: '12px', padding: '20px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)' },
   chartTitle: { fontSize: '15px', fontWeight: 'bold', color: '#374151', margin: '0 0 15px 0', textAlign: 'center' },
   lineChartContainer: { height: '100px', width: '100%', display: 'flex', alignItems: 'flex-end' },
   svgLine: { width: '100%', height: '100%' },
   pieChartWrapper: { display: 'flex', flexDirection: 'column', alignItems: 'center' },
-  
-  // GRÁFICO ATUALIZADO COM O AZUL NO CONIC GRADIENT
   pieChart: { width: '120px', height: '120px', borderRadius: '50%', background: 'conic-gradient(#EF4444 0% 10%, #F97316 10% 25%, #EAB308 25% 45%, #84CC16 45% 75%, #3B82F6 75% 100%)' },
   
   modalOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 },
   modalContent: { backgroundColor: '#FFF', padding: '30px', borderRadius: '12px', width: '500px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)', boxSizing: 'border-box' },
-  modalForm: { display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '10px' },
+  modalForm: { display: 'flex', flexDirection: 'column', gap: '15px' },
   modalInput: { padding: '12px', borderRadius: '8px', border: '1px solid #DDD', fontSize: '14px', width: '100%', boxSizing: 'border-box' },
   modalInputRow: { display: 'flex', gap: '10px', width: '100%' },
   modalButtons: { display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' },

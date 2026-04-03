@@ -18,6 +18,7 @@ import axios from 'axios';
 import { Ionicons } from '@expo/vector-icons';
 
 const API_URL = 'http://192.168.15.2:3000/triagens';
+const API_RECEPCAO_URL = 'http://192.168.15.2:3000/recepcao';
 
 type PacienteAguardando = {
   id: string;
@@ -39,6 +40,7 @@ type PacienteClassificado = {
 
 type FormData = {
   id: string;
+  idRecepcao?: string | null;
   nome: string;
   cpf: string;
   pa: string;
@@ -64,12 +66,12 @@ export default function DashboardScreen() {
   const [showAguardando, setShowAguardando] = useState(true);
   const [modalRecepcaoVisible, setModalRecepcaoVisible] = useState(false);
   const [recepcaoData, setRecepcaoData] = useState({ nome: '', cpf: '' });
-  const [pacientesAguardando, setPacientesAguardando] = useState<PacienteAguardando[]>([
-    { id: 'a1', nome: 'Maria Oliveira', cpf: '111.111.111-11', entrada: '09:15' },
-    { id: 'a2', nome: 'Pedro Santos', cpf: '', entrada: '09:20' },
-    { id: 'a3', nome: 'Ana Paula Silva', cpf: '333.333.333-33', entrada: '09:35' },
-  ]);
-  const [formData, setFormData] = useState<FormData>({ id: '', nome: '', cpf: '', pa: '', temp: '', sat: '' });
+  
+  // Agora começa vazio, pois vai buscar do Banco de Dados
+  const [pacientesAguardando, setPacientesAguardando] = useState<PacienteAguardando[]>([]);
+  
+  // Adicionado o idRecepcao para saber quem deletar depois da triagem
+  const [formData, setFormData] = useState<FormData>({ id: '', idRecepcao: null, nome: '', cpf: '', pa: '', temp: '', sat: '' });
   const [isCarregando, setIsCarregando] = useState(false);
 
   useEffect(() => {
@@ -78,8 +80,13 @@ export default function DashboardScreen() {
 
   const fetchPacientes = async () => {
     try {
-      const res = await axios.get(API_URL);
-      setPacientes(res.data);
+      // 1. Busca as triagens finalizadas
+      const resTriagens = await axios.get(API_URL);
+      setPacientes(resTriagens.data);
+
+      // 2. Busca a fila da recepção no banco de dados
+      const resRecepcao = await axios.get(API_RECEPCAO_URL);
+      setPacientesAguardando(resRecepcao.data);
     } catch (error) {
       console.error(error);
     }
@@ -91,21 +98,30 @@ export default function DashboardScreen() {
     setIsRefreshing(false);
   };
 
-  const handleAdicionarRecepcao = () => {
-    if (!recepcaoData.nome.trim()) {
-      Alert.alert('Atenção', 'O nome do paciente é obrigatório para a fila.');
+  const handleAdicionarRecepcao = async () => {
+    // Agora exige CPF igual a web
+    if (!recepcaoData.nome.trim() || !recepcaoData.cpf.trim()) {
+      Alert.alert('Atenção', 'O nome e o CPF do paciente são obrigatórios para a fila.');
       return;
     }
 
     const horario = new Date();
     const entrada = `${String(horario.getHours()).padStart(2, '0')}:${String(horario.getMinutes()).padStart(2, '0')}`;
 
-    setPacientesAguardando(prev => [
-      ...prev,
-      { id: Math.random().toString(36).slice(2, 11), nome: recepcaoData.nome.trim(), cpf: recepcaoData.cpf, entrada },
-    ]);
-    setRecepcaoData({ nome: '', cpf: '' });
-    setModalRecepcaoVisible(false);
+    try {
+      // Salva no banco de dados
+      await axios.post(API_RECEPCAO_URL, {
+        nome: recepcaoData.nome.trim(),
+        cpf: recepcaoData.cpf,
+        entrada
+      });
+
+      setRecepcaoData({ nome: '', cpf: '' });
+      setModalRecepcaoVisible(false);
+      fetchPacientes(); // Atualiza a lista buscando do banco
+    } catch (error) {
+      Alert.alert('Erro', 'Não foi possível adicionar à recepção.');
+    }
   };
 
   const handleClassificar = async () => {
@@ -121,12 +137,17 @@ export default function DashboardScreen() {
         Alert.alert('Sucesso', 'Triagem atualizada e reclassificada pela IA!');
       } else {
         await axios.post(API_URL, formData);
-        setPacientesAguardando(prev => prev.filter(p => p.nome !== formData.nome));
+        
+        // Se o paciente veio da recepção, exclui ele da fila de espera do banco
+        if (formData.idRecepcao) {
+          await axios.delete(`${API_RECEPCAO_URL}/${formData.idRecepcao}`);
+        }
+        
         Alert.alert('Sucesso', 'Paciente classificado pela IA com sucesso!');
       }
 
       setModalVisible(false);
-      setFormData({ id: '', nome: '', cpf: '', pa: '', temp: '', sat: '' });
+      setFormData({ id: '', idRecepcao: null, nome: '', cpf: '', pa: '', temp: '', sat: '' });
       fetchPacientes();
     } catch (error) {
       Alert.alert('Erro', 'Não foi possível salvar a triagem.');
@@ -136,7 +157,8 @@ export default function DashboardScreen() {
   };
 
   const iniciarTriagem = (paciente: PacienteAguardando) => {
-    setFormData({ id: '', nome: paciente.nome, cpf: paciente.cpf || '', pa: '', temp: '', sat: '' });
+    // Passa o ID da recepção para podermos apagar ele quando classificar
+    setFormData({ id: '', idRecepcao: paciente.id, nome: paciente.nome, cpf: paciente.cpf || '', pa: '', temp: '', sat: '' });
     setModalVisible(true);
   };
 
@@ -149,6 +171,7 @@ export default function DashboardScreen() {
     if (!pacienteSelecionado) return;
     setFormData({
       id: pacienteSelecionado.id,
+      idRecepcao: null,
       nome: pacienteSelecionado.nome,
       cpf: pacienteSelecionado.cpf || '',
       pa: pacienteSelecionado.pa,
@@ -287,7 +310,7 @@ export default function DashboardScreen() {
       </ScrollView>
 
       <TouchableOpacity style={styles.fab} onPress={() => {
-          setFormData({ id: '', nome: '', cpf: '', pa: '', temp: '', sat: '' });
+          setFormData({ id: '', idRecepcao: null, nome: '', cpf: '', pa: '', temp: '', sat: '' });
           setModalVisible(true);
         }}
       >
@@ -491,17 +514,13 @@ const styles = StyleSheet.create({
   modalSubtitle: { fontSize: 14, color: '#6B7280', marginBottom: 25 },
 
   detailsHeader: { flexDirection: 'row', alignItems: 'center', marginVertical: 15 },
+  colorIndicatorModal: { width: 16, height: 16, borderRadius: 8 },
   detailsHeaderText: { marginLeft: 15, flex: 1 },
   detailsName: { fontSize: 18, fontWeight: 'bold', color: '#111827' },
   detailsCpf: { color: '#6B7280', marginTop: 2 },
   detailsActions: { flexDirection: 'row', gap: 10, marginTop: 25 },
   editButton: { flex: 1, backgroundColor: '#EAB308', marginTop: 0 },
   deleteButton: { flex: 1, backgroundColor: '#EF4444', marginTop: 0 },
-
-  menuModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
-  menuModalContent: { width: '80%', backgroundColor: '#FFF', borderRadius: 16, padding: 20 },
-  menuOptionButton: { paddingVertical: 12, paddingHorizontal: 10, borderRadius: 10, backgroundColor: '#F3F4F6', marginTop: 8 },
-  menuOptionText: { color: '#111827', fontWeight: '600' },
 
   inputGroup: { marginBottom: 15 },
   label: { fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: 6 },

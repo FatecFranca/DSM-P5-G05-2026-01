@@ -177,3 +177,45 @@ const PORT = 3000;
 app.listen(PORT, () => {
   console.log(`🚀 Servidor rodando na porta http://localhost:${PORT}`);
 });
+
+// ==========================================
+// ROTA: FILA DE RECEPÇÃO
+// ==========================================
+
+// Buscar quem está aguardando (ordenado por chegada)
+app.get('/recepcao', async (req, res) => {
+  try {
+    const fila = await prisma.recepcao.findMany({
+      orderBy: { createdAt: 'asc' }
+    });
+    res.json(fila);
+  } catch (error) {
+    res.status(500).json({ error: "Erro ao buscar fila da recepção." });
+  }
+});
+
+// Adicionar paciente na recepção
+app.post('/recepcao', async (req, res) => {
+  try {
+    const { nome, cpf, entrada } = req.body;
+    const novo = await prisma.recepcao.create({
+      data: { nome, cpf, entrada }
+    });
+    res.status(201).json(novo);
+  } catch (error) {
+    res.status(500).json({ error: "Erro ao salvar na recepção." });
+  }
+});
+
+// Remover paciente da recepção (ao triar ou cancelar)
+app.delete('/recepcao/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await prisma.recepcao.delete({
+      where: { id: Number(id) }
+    });
+    res.status(204).send();
+  } catch (error) {
+    res.status(500).json({ error: "Erro ao remover da recepção." });
+  }
+});

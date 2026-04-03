@@ -27,3 +27,11 @@ model Triagem {
   espera    String   @default("0 min")
   createdAt DateTime @default(now())
 }
+
+model Recepcao {
+  id      Int      @id @default(autoincrement())
+  nome    String
+  cpf     String
+  entrada String
+  createdAt DateTime @default(now())
+}
