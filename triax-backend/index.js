@@ -42,7 +42,7 @@ app.post('/cadastro', async (req, res) => {
 
     res.status(201).json({ mensagem: 'Usuário cadastrado com sucesso!', usuario: { id: novoUsuario.id, nome: novoUsuario.nome } });
   } catch (erro) {
-    console.error(erro);
+    console.error("Erro no cadastro:", erro);
     res.status(500).json({ erro: 'Erro interno no servidor ao cadastrar.' });
   }
 });
@@ -71,7 +71,7 @@ app.post('/login', async (req, res) => {
 
     res.status(200).json({ mensagem: 'Login realizado com sucesso!', token, nome: usuario.nome });
   } catch (erro) {
-    console.error(erro);
+    console.error("Erro no login:", erro);
     res.status(500).json({ erro: 'Erro interno no servidor ao fazer login.' });
   }
 });
@@ -82,29 +82,30 @@ app.post('/login', async (req, res) => {
 
 // ROTA: Listar todas as triagens
 app.get('/triagens', async (req, res) => {
-  const triagens = await prisma.triagem.findMany({ orderBy: { createdAt: 'desc' } });
-  res.json(triagens);
+  try {
+    const triagens = await prisma.triagem.findMany({ orderBy: { createdAt: 'desc' } });
+    res.json(triagens);
+  } catch (error) {
+    console.error("Erro ao listar triagens:", error);
+    res.status(500).json({ error: "Erro interno ao listar triagens." });
+  }
 });
 
 // ROTA: Criar nova triagem (COM INTELIGÊNCIA ARTIFICIAL)
 app.post('/triagens', async (req, res) => {
   try {
-    // Apenas recebe os sinais vitais e o CPF (A cor não vem mais do front-end)
     const { nome, cpf, pa, temp, sat } = req.body;
 
-    // Converte os textos para números para a IA entender
     const paSistolica = Number(pa.split('/')[0]) * 10; 
     const temperaturaNum = Number(temp.replace(',', '.'));
     const saturacaoNum = Number(sat.replace('%', ''));
 
-    // Chama o algoritmo KNN
     const resultadoIA = classificarPaciente(paSistolica, temperaturaNum, saturacaoNum);
 
-    // Salva no banco de dados com a classificação da IA e o CPF
     const nova = await prisma.triagem.create({
       data: { 
         nome, 
-        cpf, // <-- CPF adicionado aqui
+        cpf,
         pa, 
         temp, 
         sat, 
@@ -126,12 +127,10 @@ app.put('/triagens/:id', async (req, res) => {
     const { id } = req.params;
     const { nome, cpf, pa, temp, sat } = req.body; 
     
-    // Converte os textos para números para a IA entender
     const paSistolica = Number(pa.split('/')[0]) * 10; 
     const temperaturaNum = Number(String(temp).replace(',', '.'));
     const saturacaoNum = Number(String(sat).replace('%', ''));
 
-    // Chama o algoritmo KNN para reavaliar o risco com os novos sinais
     const resultadoIA = classificarPaciente(paSistolica, temperaturaNum, saturacaoNum);
     
     const atualizada = await prisma.triagem.update({
@@ -148,41 +147,16 @@ app.put('/triagens/:id', async (req, res) => {
     });
     res.json(atualizada);
   } catch (error) {
+    console.error("Erro ao atualizar e reclassificar paciente:", error);
     res.status(500).json({ error: "Erro ao atualizar e reclassificar paciente." });
   }
-});
-
-// ROTA: Deletar triagem
-app.delete('/triagens/:id', async (req, res) => {
-  const { id } = req.params;
-  try {
-    await prisma.triagem.delete({
-      where: { id: Number(id) }
-    });
-    res.status(204).send();
-  } catch (error) {
-    res.status(500).json({ error: "Erro ao deletar triagem." });
-  }
-});
-
-// Rota de teste
-app.get('/', (req, res) => {
-  res.send('Servidor do TRIAX rodando com IA Ativa!');
-});
-
-// ==========================================
-// INICIALIZAÇÃO DO SERVIDOR
-// ==========================================
-const PORT = 3000;
-app.listen(PORT, () => {
-  console.log(`🚀 Servidor rodando na porta http://localhost:${PORT}`);
 });
 
 // ==========================================
 // ROTA: FILA DE RECEPÇÃO
 // ==========================================
 
-// Buscar quem está aguardando (ordenado por chegada)
+// Buscar quem está aguardando
 app.get('/recepcao', async (req, res) => {
   try {
     const fila = await prisma.recepcao.findMany({
@@ -190,6 +164,7 @@ app.get('/recepcao', async (req, res) => {
     });
     res.json(fila);
   } catch (error) {
+    console.error("Erro ao buscar fila da recepção:", error);
     res.status(500).json({ error: "Erro ao buscar fila da recepção." });
   }
 });
@@ -203,11 +178,12 @@ app.post('/recepcao', async (req, res) => {
     });
     res.status(201).json(novo);
   } catch (error) {
+    console.error("Erro ao salvar na recepção:", error);
     res.status(500).json({ error: "Erro ao salvar na recepção." });
   }
 });
 
-// Remover paciente da recepção (ao triar ou cancelar)
+// Remover paciente da recepção
 app.delete('/recepcao/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -216,6 +192,75 @@ app.delete('/recepcao/:id', async (req, res) => {
     });
     res.status(204).send();
   } catch (error) {
+    console.error("Erro ao remover da recepção:", error);
     res.status(500).json({ error: "Erro ao remover da recepção." });
   }
+});
+
+// ==========================================
+// ROTA DE HISTÓRICO E ALTA
+// ==========================================
+
+// Buscar o histórico de pacientes que já tiveram alta
+app.get('/historico', async (req, res) => {
+  try {
+    const historico = await prisma.historico.findMany({
+      orderBy: { dataAlta: 'desc' } // <-- Voltando para o original que estava certo!
+    });
+    res.json(historico);
+  } catch (error) {
+    // Agora sim, se der erro, vamos ver o motivo real!
+    console.error("ERRO REAL NO BACK-END (ROTA HISTÓRICO):", error); 
+    res.status(500).json({ error: "Erro ao buscar histórico." });
+  }
+});
+
+// ROTA ATUALIZADA: Deletar triagem E salvar no Histórico
+app.delete('/triagens/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // 1. Busca o paciente antes de deletar
+    const paciente = await prisma.triagem.findUnique({
+      where: { id: Number(id) }
+    });
+
+    if (paciente) {
+      // 2. Salva no histórico
+      await prisma.historico.create({
+        data: {
+          nome: paciente.nome,
+          cpf: paciente.cpf,
+          pa: paciente.pa,
+          temp: paciente.temp,
+          sat: paciente.sat,
+          cor: paciente.cor,
+          iaScore: paciente.iaScore,
+        }
+      });
+    }
+
+    // 3. Deleta da fila ativa
+    await prisma.triagem.delete({
+      where: { id: Number(id) }
+    });
+
+    res.status(204).send();
+  } catch (error) {
+    console.error("Erro ao processar alta do paciente:", error);
+    res.status(500).json({ error: "Erro ao processar alta do paciente." });
+  }
+});
+
+// Rota de teste
+app.get('/', (req, res) => {
+  res.send('Servidor do TRIAX rodando com IA Ativa!');
+});
+
+// ==========================================
+// INICIALIZAÇÃO DO SERVIDOR 
+// ==========================================
+const PORT = 3000;
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Servidor rodando na porta http://localhost:${PORT}`);
 });
