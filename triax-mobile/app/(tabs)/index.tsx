@@ -14,7 +14,7 @@ import {
 import { useRouter } from 'expo-router';
 import axios from 'axios';
 
-const API_URL = 'http://192.168.15.2:3000/login';
+const API_URL = 'http://192.168.15.8:3000/login';
 
 export default function LoginScreen() {
   const router = useRouter();

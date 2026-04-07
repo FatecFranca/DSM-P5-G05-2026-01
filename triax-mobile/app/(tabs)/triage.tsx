@@ -17,8 +17,8 @@ import { useRouter } from 'expo-router';
 import axios from 'axios';
 import { Ionicons } from '@expo/vector-icons';
 
-const API_URL = 'http://192.168.15.2:3000/triagens';
-const API_RECEPCAO_URL = 'http://192.168.15.2:3000/recepcao';
+const API_URL = 'http://192.168.15.8:3000/triagens';
+const API_RECEPCAO_URL = 'http:/192.168.15.8:3000/recepcao';
 
 type PacienteAguardando = {
   id: string;
@@ -67,7 +67,6 @@ export default function DashboardScreen() {
   const [modalRecepcaoVisible, setModalRecepcaoVisible] = useState(false);
   const [recepcaoData, setRecepcaoData] = useState({ nome: '', cpf: '' });
   
-  // Agora começa vazio, pois vai buscar do Banco de Dados
   const [pacientesAguardando, setPacientesAguardando] = useState<PacienteAguardando[]>([]);
   
   // Adicionado o idRecepcao para saber quem deletar depois da triagem
@@ -99,7 +98,6 @@ export default function DashboardScreen() {
   };
 
   const handleAdicionarRecepcao = async () => {
-    // Agora exige CPF igual a web
     if (!recepcaoData.nome.trim() || !recepcaoData.cpf.trim()) {
       Alert.alert('Atenção', 'O nome e o CPF do paciente são obrigatórios para a fila.');
       return;
