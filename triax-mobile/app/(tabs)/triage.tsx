@@ -3,22 +3,22 @@ import {
   StyleSheet,
   Text,
   View,
+  SafeAreaView,
   TextInput,
   TouchableOpacity,
   Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Image,
   Modal,
   RefreshControl,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter } from 'expo-router'; 
 import axios from 'axios';
 import { Ionicons } from '@expo/vector-icons';
 
-const API_URL = 'http://192.168.15.8:3000/triagens';
-const API_RECEPCAO_URL = 'http:/192.168.15.8:3000/recepcao';
+const API_URL = 'http://172.20.10.5:3000/triagens';
+const API_RECEPCAO_URL = 'http://172.20.10.5:3000/recepcao';
 
 type PacienteAguardando = {
   id: string;
@@ -69,7 +69,6 @@ export default function DashboardScreen() {
   
   const [pacientesAguardando, setPacientesAguardando] = useState<PacienteAguardando[]>([]);
   
-  // Adicionado o idRecepcao para saber quem deletar depois da triagem
   const [formData, setFormData] = useState<FormData>({ id: '', idRecepcao: null, nome: '', cpf: '', pa: '', temp: '', sat: '' });
   const [isCarregando, setIsCarregando] = useState(false);
 
@@ -79,11 +78,9 @@ export default function DashboardScreen() {
 
   const fetchPacientes = async () => {
     try {
-      // 1. Busca as triagens finalizadas
       const resTriagens = await axios.get(API_URL);
       setPacientes(resTriagens.data);
 
-      // 2. Busca a fila da recepção no banco de dados
       const resRecepcao = await axios.get(API_RECEPCAO_URL);
       setPacientesAguardando(resRecepcao.data);
     } catch (error) {
@@ -107,7 +104,6 @@ export default function DashboardScreen() {
     const entrada = `${String(horario.getHours()).padStart(2, '0')}:${String(horario.getMinutes()).padStart(2, '0')}`;
 
     try {
-      // Salva no banco de dados
       await axios.post(API_RECEPCAO_URL, {
         nome: recepcaoData.nome.trim(),
         cpf: recepcaoData.cpf,
@@ -116,7 +112,7 @@ export default function DashboardScreen() {
 
       setRecepcaoData({ nome: '', cpf: '' });
       setModalRecepcaoVisible(false);
-      fetchPacientes(); // Atualiza a lista buscando do banco
+      fetchPacientes(); 
     } catch (error) {
       Alert.alert('Erro', 'Não foi possível adicionar à recepção.');
     }
@@ -136,7 +132,6 @@ export default function DashboardScreen() {
       } else {
         await axios.post(API_URL, formData);
         
-        // Se o paciente veio da recepção, exclui ele da fila de espera do banco
         if (formData.idRecepcao) {
           await axios.delete(`${API_RECEPCAO_URL}/${formData.idRecepcao}`);
         }
@@ -155,7 +150,6 @@ export default function DashboardScreen() {
   };
 
   const iniciarTriagem = (paciente: PacienteAguardando) => {
-    // Passa o ID da recepção para podermos apagar ele quando classificar
     setFormData({ id: '', idRecepcao: paciente.id, nome: paciente.nome, cpf: paciente.cpf || '', pa: '', temp: '', sat: '' });
     setModalVisible(true);
   };
@@ -219,24 +213,15 @@ export default function DashboardScreen() {
   const atualizaCpfForm = (cpf: string) => setFormData({ ...formData, cpf: formatCpf(cpf) });
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.headerTop}>
-          <TouchableOpacity style={styles.menuButton} onPress={() => {}}>
-            <Ionicons name="menu" size={32} color="#168C8C" />
-          </TouchableOpacity>
-          <Image source={require('../../assets/images/logob.png')} style={styles.logo} />
-          <TouchableOpacity style={styles.logoutButton} onPress={() => router.replace('/')}>
-            <Ionicons name="log-out-outline" size={24} color="#EF4444" />
-            <Text style={styles.logoutText}>Sair</Text>
-          </TouchableOpacity>
-        </View>
-        <Text style={styles.pageTitle}>Painel de Controle - Emergência</Text>
-      </View>
+    <SafeAreaView style={styles.container}>
+      {/* Título da tela com margem ajustada para não colar no cabeçalho customizado */}
+      <Text style={styles.pageTitle}>Painel de Controle - Emergência</Text>
 
       <ScrollView
+        style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} colors={['#168C8C']} />}
+        showsVerticalScrollIndicator={false}
       >
         <Text style={styles.sectionHeading}>RESUMO DO PLANTÃO</Text>
         <View style={styles.resumoContainer}>
@@ -451,21 +436,17 @@ export default function DashboardScreen() {
           </KeyboardAvoidingView>
         </View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#EBEFF2' },
-  header: { backgroundColor: '#FFF', paddingTop: 50, paddingBottom: 15, paddingHorizontal: 20, borderBottomWidth: 1, borderColor: '#D1D5DB' },
-  headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  menuButton: { padding: 5, marginLeft: -5 },
-  logo: { width: 120, height: 40, resizeMode: 'contain' },
-  logoutButton: { flexDirection: 'row', alignItems: 'center', gap: 4, padding: 5 },
-  logoutText: { color: '#EF4444', fontWeight: 'bold', fontSize: 16 },
-  pageTitle: { fontSize: 20, fontWeight: 'bold', color: '#111827', marginTop: 15 },
+  scrollView: { flex: 1, backgroundColor: '#EBEFF2' },
+  
+  pageTitle: { fontSize: 20, fontWeight: 'bold', color: '#111827', marginTop: 15, marginBottom: 5, paddingHorizontal: 20 },
 
-  scrollContent: { paddingBottom: 100 },
+  scrollContent: { flexGrow: 1, paddingBottom: 30, backgroundColor: '#EBEFF2' },
   sectionHeading: { fontSize: 18, color: '#111827', marginTop: 20, marginBottom: 10, paddingHorizontal: 20 },
 
   resumoContainer: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 20, marginBottom: 10 },

@@ -14,7 +14,12 @@ import {
 import { useRouter } from 'expo-router';
 import axios from 'axios';
 
-const API_URL = 'http://192.168.15.8:3000/cadastro';
+export const options = {
+  headerShown: false,
+  title: '',
+};
+
+const API_URL = 'http://172.20.10.5:3000/cadastro';
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -52,8 +57,8 @@ export default function RegisterScreen() {
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.header}>
-          <Image source={require('../../assets/images/logob.png')} style={styles.logo} />
-          <Text style={styles.title}>Bem-vindo de volta!</Text>
+          <Image source={require('../assets/images/logob.png')} style={styles.logo} />
+          <Text style={styles.title}>Seja bem-vindo!</Text>
         </View>
 
         <View style={styles.formCard}>
@@ -97,8 +102,8 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFF' },
   scroll: { flexGrow: 1, justifyContent: 'center', padding: 25 },
   header: { alignItems: 'center', marginBottom: 40, marginTop: -30 },
-  logo: { width: 180, height: 180, marginBottom: -25, marginTop: 20, resizeMode: 'contain' },
-  title: { fontSize: 24, fontWeight: 'bold', color: '#333', textAlign: 'center' },
+  logo: { width: 180, height: 180, marginBottom: 1, marginTop: -40, resizeMode: 'contain' },
+  title: { fontSize: 26, fontWeight: 'bold', color: '#333', textAlign: 'center', marginTop: -40 },
   formCard: {
     backgroundColor: '#FFF',
     padding: 20,

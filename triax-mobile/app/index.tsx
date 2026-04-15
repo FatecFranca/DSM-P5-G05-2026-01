@@ -14,7 +14,12 @@ import {
 import { useRouter } from 'expo-router';
 import axios from 'axios';
 
-const API_URL = 'http://192.168.15.8:3000/login';
+export const options = {
+  headerShown: false,
+  title: '',
+};
+
+const API_URL = 'http://172.20.10.5:3000/login';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -45,7 +50,7 @@ export default function LoginScreen() {
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.header}>
-          <Image source={require('../../assets/images/logob.png')} style={styles.logo} />
+          <Image source={require('../assets/images/logob.png')} style={styles.logo} />
           <Text style={styles.title}>Bem-vindo de volta!</Text>
         </View>
 
@@ -105,10 +110,10 @@ const styles = StyleSheet.create({
     marginTop: -40,
   },
   logo: {
-    width: 180,
-    height: 180,
+    width: 220,
+    height: 220,
     marginBottom: -25,
-    marginTop: 20,
+    marginTop: -100,
     resizeMode: 'contain',
   },
   title: {
@@ -116,6 +121,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
     textAlign: 'center',
+    marginTop: -40,
   },
   formCard: {
     backgroundColor: '#FFF',
@@ -126,6 +132,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 10,
     elevation: 5,
+    
   },
   inputGroup: {
     marginBottom: 20,

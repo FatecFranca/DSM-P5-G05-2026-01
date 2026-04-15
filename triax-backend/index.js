@@ -205,13 +205,37 @@ app.delete('/recepcao/:id', async (req, res) => {
 app.get('/historico', async (req, res) => {
   try {
     const historico = await prisma.historico.findMany({
-      orderBy: { dataAlta: 'desc' } // <-- Voltando para o original que estava certo!
+      orderBy: { dataAlta: 'desc' }
     });
     res.json(historico);
   } catch (error) {
-    // Agora sim, se der erro, vamos ver o motivo real!
     console.error("ERRO REAL NO BACK-END (ROTA HISTÓRICO):", error); 
     res.status(500).json({ error: "Erro ao buscar histórico." });
+  }
+});
+
+// ROTA NOVA AQUI: Buscar detalhes de um prontuário específico do histórico
+app.get('/historico/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // TRAVA DE SEGURANÇA: Verifica se não enviaram a palavra 'undefined' ou letras
+    if (!id || isNaN(Number(id))) {
+      return res.status(400).json({ erro: "ID do prontuário inválido." });
+    }
+
+    const prontuario = await prisma.historico.findUnique({
+      where: { id: Number(id) }
+    });
+
+    if (!prontuario) {
+      return res.status(404).json({ erro: "Prontuário não encontrado." });
+    }
+
+    res.json(prontuario);
+  } catch (error) {
+    console.error("ERRO REAL NO BACK-END (ROTA DETALHES):", error);
+    res.status(500).json({ error: "Erro interno ao buscar prontuário." });
   }
 });
 
@@ -256,6 +280,8 @@ app.delete('/triagens/:id', async (req, res) => {
 app.get('/', (req, res) => {
   res.send('Servidor do TRIAX rodando com IA Ativa!');
 });
+
+
 
 // ==========================================
 // INICIALIZAÇÃO DO SERVIDOR 
