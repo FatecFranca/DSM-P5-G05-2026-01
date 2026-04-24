@@ -19,7 +19,7 @@ export const options = {
   title: '',
 };
 
-const API_URL = 'http://172.20.10.5:3000/login';
+const API_URL = 'http://192.168.15.8:3000/login';
 
 export default function LoginScreen() {
   const router = useRouter();

@@ -7,8 +7,8 @@ export default function TabsLayout() {
   const [menuVisivel, setMenuVisivel] = useState(false);
   const router = useRouter();
 
-  // Função para navegar no menu
-  const navegarPara = (rota: '/triage' | '/history' | '/(tabs)/settings') => {
+  // Função para navegar no menu (Ajustado apenas aqui para aceitar a rota correta)
+  const navegarPara = (rota: '/triage' | '/history' | '/settings') => {
     setMenuVisivel(false);
     router.push(rota);
   };
@@ -100,7 +100,8 @@ export default function TabsLayout() {
 
             <View style={styles.divider} />
 
-            <TouchableOpacity style={styles.menuItem} onPress={() => navegarPara('/(tabs)/settings')}>
+            {/* O link ajustado para abrir a tela perfeitamente */}
+            <TouchableOpacity style={styles.menuItem} onPress={() => navegarPara('/settings')}>
               <Ionicons name="settings-outline" size={24} color="#168C8C" />
               <Text style={styles.menuText}>Configurações</Text>
             </TouchableOpacity>

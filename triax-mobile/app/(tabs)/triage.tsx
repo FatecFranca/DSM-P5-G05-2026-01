@@ -18,8 +18,8 @@ import { useRouter } from 'expo-router';
 import axios from 'axios';
 import { Ionicons } from '@expo/vector-icons';
 
-const API_URL = 'http://172.20.10.5:3000/triagens';
-const API_RECEPCAO_URL = 'http://172.20.10.5:3000/recepcao';
+const API_URL = 'http://192.168.15.8:3000/triagens';
+const API_RECEPCAO_URL = 'http://192.168.15.8:3000/recepcao';
 
 type PacienteAguardando = {
   id: string;
@@ -273,7 +273,7 @@ export default function DashboardScreen() {
 
             <View style={styles.divider} />
 
-            <TouchableOpacity style={styles.menuItem} onPress={() => setMenuVisivel(false)}>
+            <TouchableOpacity style={styles.menuItem} onPress={() => navegarPara('/settings')}>
               <Ionicons name="settings-outline" size={24} color="#6B7280" />
               <Text style={[styles.menuText, { color: '#6B7280' }]}>Configurações</Text>
             </TouchableOpacity>
