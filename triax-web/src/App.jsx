@@ -4,6 +4,7 @@ import Login from './pages/Login';
 import Cadastro from './pages/Cadastro';
 import Dashboard from './pages/Dashboard';
 import Historico from './pages/Historico';
+import Configuracoes from './pages/Configuracoes';
 
 function App() {
   return (
@@ -13,6 +14,7 @@ function App() {
         <Route path="/cadastro" element={<Cadastro />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/historico" element={<Historico />} />
+        <Route path="/configuracoes" element={<Configuracoes />} />
       </Routes>
     </Router>
   );

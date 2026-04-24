@@ -1,0 +1,165 @@
+.settings-container {
+  min-height: 100vh;
+  background-color: #F3F4F6;
+  font-family: Arial, sans-serif;
+}
+
+/* ============================ */
+/* CABEÇALHO PADRÃO TRIAX       */
+/* ============================ */
+.page-top-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #FFF;
+  padding: 15px 40px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.menu-trigger-icon {
+  font-size: 28px;
+  cursor: pointer;
+  color: #168C8C;
+}
+
+.header-logo {
+  height: 50px;
+  margin-top: 5px;
+}
+
+/* ============================ */
+/* CONTEÚDO PRINCIPAL           */
+/* ============================ */
+.settings-main-content {
+  padding: 40px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.page-title-section {
+  margin-bottom: 30px;
+}
+
+.main-title {
+  font-size: 28px;
+  font-weight: bold;
+  color: #111827;
+  margin: 0 0 5px 0;
+}
+
+.main-subtitle {
+  color: #6B7280;
+  margin: 0;
+  font-size: 15px;
+}
+
+/* ============================ */
+/* CARDS DE CONFIGURAÇÃO        */
+/* ============================ */
+.settings-card {
+  background-color: #FFF;
+  border-radius: 12px;
+  padding: 25px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.card-header h2 {
+  font-size: 18px;
+  color: #111827;
+  margin: 0;
+}
+
+.card-icon { color: #168C8C; }
+.card-desc { font-size: 14px; color: #6B7280; margin-bottom: 20px; }
+
+/* Grid de Tempos */
+.time-inputs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 15px;
+}
+
+.time-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background-color: #F9FAFB;
+  padding: 15px;
+  border-radius: 8px;
+  border: 1px solid #E5E7EB;
+}
+
+.time-input-group label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.time-input-group input {
+  padding: 8px;
+  border: 1px solid #D1D5DB;
+  border-radius: 6px;
+  font-size: 16px;
+  outline: none;
+}
+
+.time-input-group input:focus {
+  border-color: #168C8C;
+}
+
+.color-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 5px;
+}
+
+/* Toggles (Botões Liga/Desliga) */
+.toggle-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.toggle-row strong { color: #374151; font-size: 15px; }
+.toggle-row p { color: #6B7280; font-size: 13px; margin: 5px 0 0 0; }
+
+.switch { position: relative; display: inline-block; width: 50px; height: 28px; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
+.slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+input:checked + .slider { background-color: #168C8C; }
+input:checked + .slider:before { transform: translateX(22px); }
+
+/* Botão Salvar */
+.save-container { display: flex; justify-content: flex-end; margin-top: 30px; }
+.btn-save {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #168C8C;
+  color: #FFF;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.btn-save:hover { background-color: #127373; }

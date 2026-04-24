@@ -1,0 +1,106 @@
+.sidebar-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.4);
+  z-index: 998;
+}
+
+.sidebar-container {
+  position: fixed;
+  top: 0;
+  left: -300px; /* Começa escondido fora da tela */
+  width: 280px;
+  height: 100vh;
+  background-color: #FFF;
+  box-shadow: 4px 0 15px rgba(0, 0, 0, 0.1);
+  z-index: 999;
+  transition: left 0.3s ease-in-out;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Quando a classe 'open' é adicionada, ele desliza para a tela */
+.sidebar-container.open {
+  left: 0;
+}
+
+.sidebar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 25px 20px;
+  border-bottom: 1px solid #E5E7EB;
+  margin-bottom: 15px;
+}
+
+.sidebar-logo {
+  color: #168C8C;
+  font-size: 24px;
+  font-weight: 900;
+  margin: 0;
+  letter-spacing: 1px;
+}
+
+.close-btn {
+  background: transparent;
+  border: none;
+  color: #6B7280;
+  cursor: pointer;
+  padding: 5px;
+}
+
+.menu-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  padding: 15px 20px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 500;
+  color: #374151;
+  transition: background 0.2s;
+  border-left: 4px solid transparent; /* Borda invisível por padrão */
+}
+
+.menu-item:hover {
+  background-color: #F9FAFB;
+}
+
+.menu-icon {
+  margin-right: 15px;
+  color: #168C8C;
+}
+
+/* O item que está selecionado agora */
+.menu-item.active {
+  background-color: #F0FDF4; /* Fundo levemente verdinho/azul */
+  border-left: 4px solid #168C8C; /* A barra lateral colorida */
+  color: #168C8C;
+  font-weight: 700;
+}
+
+.menu-divider {
+  height: 1px;
+  background-color: #E5E7EB;
+  margin: 15px 0;
+}
+
+.text-gray { color: #6B7280 !important; }
+.text-red { color: #EF4444 !important; }
+
+.sidebar-footer {
+  margin-top: auto;
+  margin-bottom: 20px;
+}
+
+.logout-item:hover {
+  background-color: #FEF2F2;
+}

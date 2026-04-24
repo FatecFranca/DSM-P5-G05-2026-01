@@ -1,15 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import logoTriax from '../assets/logob.png';
 import lixoDelet from '../assets/lixo.png';
+import Sidebar from '../components/Sidebar'; 
 
 export default function Historico() {
   const navigate = useNavigate();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); 
   const [historico, setHistorico] = useState([]);
   const [busca, setBusca] = useState('');
   const [prontuarioAberto, setProntuarioAberto] = useState(false);
   const [pacienteSelecionado, setPacienteSelecionado] = useState(null);
+
   useEffect(() => {
     buscarHistorico();
   }, []);
@@ -35,13 +40,34 @@ export default function Historico() {
     }
   };
 
-  const voltarDashboard = () => {
-    navigate('/dashboard'); 
-  };
-
   const abrirProntuario = (paciente) => {
     setPacienteSelecionado(paciente);
     setProntuarioAberto(true);
+  };
+
+  const baixarPDF = () => {
+    const doc = new jsPDF();
+    doc.text("Histórico de Prontuários - TRIAX", 14, 15);
+    
+    const tableData = historicoFiltrado.map(p => [
+      new Date(p.createdAt).toLocaleDateString('pt-BR'),
+      p.nome,
+      p.pa,
+      p.temp + '°C',
+      p.sat + '%',
+      p.iaScore + '%',
+      p.cor === '#EF4444' ? 'Emergência' : p.cor === '#F97316' ? 'Muito Urgente' : p.cor === '#EAB308' ? 'Urgente' : 'Pouco Urgente'
+    ]);
+
+    autoTable(doc, {
+      head: [['Data', 'Paciente', 'PA', 'Temp', 'Sat', 'Score IA', 'Classificação']],
+      body: tableData,
+      startY: 20,
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [22, 140, 140] } // Cor Verde/Azul do Triax
+    });
+
+    doc.save(`historico_triax.pdf`);
   };
 
   const historicoFiltrado = historico.filter((paciente) =>
@@ -55,13 +81,13 @@ export default function Historico() {
   return (
     <div style={styles.container}>
       
+      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+
       <header style={styles.header}>
         <div style={styles.headerLeft}>
+          <span style={styles.menuIcon} onClick={() => setIsSidebarOpen(true)}>☰</span>
           <img src={logoTriax} alt="TRIAX" style={styles.logoImage} />
         </div>
-        <button style={styles.backButton} onClick={voltarDashboard}>
-          ← Voltar ao painel
-        </button>
       </header>
 
       <main style={styles.mainContent}>
@@ -81,6 +107,9 @@ export default function Historico() {
             />
             <button style={styles.refreshButton} onClick={buscarHistorico}>
                Atualizar
+            </button>
+            <button style={styles.pdfButton} onClick={baixarPDF}>
+               Baixar PDF
             </button>
           </div>
         </div>
@@ -208,15 +237,17 @@ export default function Historico() {
 const styles = {
   container: { minHeight: '100vh', backgroundColor: '#F3F4F6', fontFamily: 'Arial, sans-serif' },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#FFF', padding: '15px 40px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' },
-  logoImage: { height: '70px' },
-  backButton: { background: 'none', border: '1px solid #D1D5DB', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', color: '#374151' },
+  headerLeft: { display: 'flex', alignItems: 'center', gap: '20px' },
+  menuIcon: { fontSize: '28px', cursor: 'pointer', color: '#168C8C' },
+  logoImage: { height: '50px', marginTop: '5px' },
   mainContent: { padding: '40px', maxWidth: '1200px', margin: '0 auto' },
   pageHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '20px', flexWrap: 'wrap', gap: '20px' },
   pageTitle: { fontSize: '28px', fontWeight: 'bold', color: '#111827', margin: '0 0 5px 0' },
   subtitle: { color: '#6B7280', margin: 0, fontSize: '15px' },
   actionArea: { display: 'flex', gap: '15px' },
   searchInput: { padding: '10px 15px', borderRadius: '8px', border: '1px solid #D1D5DB', width: '300px', fontSize: '14px' },
-  refreshButton: { padding: '10px 20px', borderRadius: '8px', border: 'none', cursor: 'pointer', backgroundColor: '#168C8C', color: '#FFF', fontWeight: 'bold' },
+  refreshButton: { padding: '10px 20px', borderRadius: '8px', border: 'none', cursor: 'pointer', backgroundColor: '#E5E7EB', color: '#374151', fontWeight: 'bold' },
+  pdfButton: { padding: '10px 20px', borderRadius: '8px', border: 'none', cursor: 'pointer', backgroundColor: '#168C8C', color: '#FFF', fontWeight: 'bold' },
   tableCard: { backgroundColor: '#FFF', borderRadius: '12px', padding: '20px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)', overflowX: 'auto' },
   table: { width: '100%', borderCollapse: 'collapse', minWidth: '800px' },
   th: { padding: '15px 10px', fontSize: '14px', color: '#6B7280', textAlign: 'left', borderBottom: '2px solid #E5E7EB', backgroundColor: '#F9FAFB' },
