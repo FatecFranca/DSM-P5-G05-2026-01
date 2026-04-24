@@ -281,8 +281,6 @@ app.get('/', (req, res) => {
   res.send('Servidor do TRIAX rodando com IA Ativa!');
 });
 
-
-
 // ==========================================
 // INICIALIZAÇÃO DO SERVIDOR 
 // ==========================================

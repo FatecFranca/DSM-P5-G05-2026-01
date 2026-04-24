@@ -12,6 +12,7 @@ import {
   ScrollView,
   Modal,
   RefreshControl,
+  Image,
 } from 'react-native';
 import { useRouter } from 'expo-router'; 
 import axios from 'axios';
@@ -68,9 +69,20 @@ export default function DashboardScreen() {
   const [recepcaoData, setRecepcaoData] = useState({ nome: '', cpf: '' });
   
   const [pacientesAguardando, setPacientesAguardando] = useState<PacienteAguardando[]>([]);
+  const [menuVisivel, setMenuVisivel] = useState(false);
   
   const [formData, setFormData] = useState<FormData>({ id: '', idRecepcao: null, nome: '', cpf: '', pa: '', temp: '', sat: '' });
   const [isCarregando, setIsCarregando] = useState(false);
+
+  const navegarPara = (rota: '/triage' | '/history') => {
+    setMenuVisivel(false);
+    router.push(rota);
+  };
+
+  const fazerLogout = () => {
+    setMenuVisivel(false);
+    router.replace('/');
+  }; 
 
   useEffect(() => {
     fetchPacientes();
@@ -214,7 +226,68 @@ export default function DashboardScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Título da tela com margem ajustada para não colar no cabeçalho customizado */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => setMenuVisivel(true)}
+          style={styles.menuButton}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons name="menu" size={28} color="#168C8C" />
+        </TouchableOpacity>
+
+        <Image
+          source={require('../../assets/images/logob.png')}
+          style={styles.logo}
+          resizeMode="contain"
+        />
+
+        <TouchableOpacity
+          onPress={fazerLogout}
+          style={styles.logoutButton}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons name="log-out-outline" size={24} color="#EF4444" />
+        </TouchableOpacity>
+      </View>
+
+      <Modal visible={menuVisivel} animationType="fade" transparent>
+        <View style={styles.drawerOverlay}>
+          <TouchableOpacity style={styles.drawerBackground} onPress={() => setMenuVisivel(false)} />
+          <View style={styles.drawer}>
+            <View style={styles.drawerHeader}>
+              <Text style={styles.drawerLogo}>TRIAX</Text>
+              <TouchableOpacity onPress={() => setMenuVisivel(false)}>
+                <Ionicons name="close" size={28} color="#111827" />
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity style={styles.menuItem} onPress={() => navegarPara('/triage')}>
+              <Ionicons name="pulse" size={24} color="#168C8C" />
+              <Text style={styles.menuText}>Fila Ativa</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.menuItem} onPress={() => navegarPara('/history')}>
+              <Ionicons name="time" size={24} color="#168C8C" />
+              <Text style={styles.menuText}>Histórico</Text>
+            </TouchableOpacity>
+
+            <View style={styles.divider} />
+
+            <TouchableOpacity style={styles.menuItem} onPress={() => setMenuVisivel(false)}>
+              <Ionicons name="settings-outline" size={24} color="#6B7280" />
+              <Text style={[styles.menuText, { color: '#6B7280' }]}>Configurações</Text>
+            </TouchableOpacity>
+
+            <View style={styles.footer}>
+              <TouchableOpacity style={styles.menuItem} onPress={fazerLogout}>
+                <Ionicons name="log-out-outline" size={24} color="#EF4444" />
+                <Text style={[styles.menuText, { color: '#EF4444' }]}>Sair da Conta</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <Text style={styles.pageTitle}>Painel de Controle - Emergência</Text>
 
       <ScrollView
@@ -443,8 +516,36 @@ export default function DashboardScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#EBEFF2' },
   scrollView: { flex: 1, backgroundColor: '#EBEFF2' },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFF',
+    paddingTop: Platform.OS === 'ios' ? 22 : 14,
+    paddingBottom: 14,
+    paddingHorizontal: 18,
+    borderBottomWidth: 1,
+    borderColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  menuButton: { padding: 10 },
+  logo: { width: 200, height: 54 },
+  logoutButton: { padding: 10 },
+  drawerOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)', flexDirection: 'row' },
+  drawerBackground: { flex: 1 },
+  drawer: { position: 'absolute', left: 0, top: 0, bottom: 0, width: '75%', backgroundColor: '#FFF', padding: 20, paddingTop: 50, elevation: 10, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 10 },
+  drawerHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 40 },
+  drawerLogo: { fontSize: 24, fontWeight: '900', color: '#168C8C', letterSpacing: 1 },
+  menuItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 15, marginBottom: 5 },
+  menuText: { fontSize: 16, fontWeight: '600', color: '#111827', marginLeft: 15 },
+  divider: { height: 1, backgroundColor: '#E5E7EB', marginVertical: 15 },
+  footer: { flex: 1, justifyContent: 'flex-end', marginBottom: 20 },
   
-  pageTitle: { fontSize: 20, fontWeight: 'bold', color: '#111827', marginTop: 15, marginBottom: 5, paddingHorizontal: 20 },
+  pageTitle: { fontSize: 22, fontWeight: 'bold', color: '#111827', marginTop: 18, marginBottom: 10, paddingHorizontal: 20 },
 
   scrollContent: { flexGrow: 1, paddingBottom: 30, backgroundColor: '#EBEFF2' },
   sectionHeading: { fontSize: 18, color: '#111827', marginTop: 20, marginBottom: 10, paddingHorizontal: 20 },

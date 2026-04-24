@@ -8,7 +8,7 @@ export default function TabsLayout() {
   const router = useRouter();
 
   // Função para navegar no menu
-  const navegarPara = (rota: string) => {
+  const navegarPara = (rota: '/triage' | '/history' | '/(tabs)/settings') => {
     setMenuVisivel(false);
     router.push(rota);
   };
@@ -46,7 +46,6 @@ export default function TabsLayout() {
       <Tabs screenOptions={{
         headerShown: false,
         tabBarStyle: { display: 'none' }, // Mantém a barra de baixo escondida
-        sceneContainerStyle: { backgroundColor: '#EBEFF2' },
       }}>
         
         {/* TELA PRINCIPAL */}
@@ -62,6 +61,14 @@ export default function TabsLayout() {
           name="history"
           options={{ 
             header: () => <CustomHeader /> 
+          }}
+        />
+
+        {/* TELA DE CONFIGURAÇÕES */}
+        <Tabs.Screen
+          name="settings"
+          options={{ 
+            headerShown: false
           }}
         />
         
@@ -93,9 +100,9 @@ export default function TabsLayout() {
 
             <View style={styles.divider} />
 
-            <TouchableOpacity style={styles.menuItem} onPress={() => setMenuVisivel(false)}>
-              <Ionicons name="settings-outline" size={24} color="#6B7280" />
-              <Text style={[styles.menuText, { color: '#6B7280' }]}>Configurações</Text>
+            <TouchableOpacity style={styles.menuItem} onPress={() => navegarPara('/(tabs)/settings')}>
+              <Ionicons name="settings-outline" size={24} color="#168C8C" />
+              <Text style={styles.menuText}>Configurações</Text>
             </TouchableOpacity>
 
             <View style={styles.footer}>

@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Alert } from 'react-native';
-import { useLocalSearchParams, Stack } from 'expo-router';
+import React, { useEffect, useState, useRef } from 'react';
+import { SafeAreaView, View, Text, StyleSheet, ScrollView, ActivityIndicator, Alert, PanResponder } from 'react-native';
+import { useLocalSearchParams, Stack, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 
 // A sua URL atualizada com o IP correto!
-const API_URL = 'http://172.20.10.5:3000/historico';
+const API_URL = 'http://192.168.15.8:3000/historico';
 
 type Prontuario = {
   id: number;
@@ -16,13 +16,25 @@ type Prontuario = {
   sat: string;
   cor: string;
   iaScore: number;
-  createdAt: string;
+  dataAlta: string;
 };
 
 export default function RecordDetail() {
   const { id } = useLocalSearchParams();
+  const router = useRouter();
   const [paciente, setPaciente] = useState<Prontuario | null>(null);
   const [loading, setLoading] = useState(true);
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (evt, gestureState) => Math.abs(gestureState.dx) > 30 && Math.abs(gestureState.dy) < 10,
+      onPanResponderRelease: (evt, gestureState) => {
+        if (gestureState.dx > 50) {
+          router.back();
+        }
+      },
+    })
+  ).current;
 
   useEffect(() => {
     // AQUI ESTÁ A TRAVA DE SEGURANÇA!
@@ -68,8 +80,9 @@ export default function RecordDetail() {
   }
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {/* Configuração da Barra Superior do App */}
+    <SafeAreaView style={styles.safeArea} {...panResponder.panHandlers}>
+      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+        {/* Configuração da Barra Superior do App */}
       <Stack.Screen 
         options={{ 
           title: 'Prontuário Médico', 
@@ -109,7 +122,7 @@ export default function RecordDetail() {
             </View>
             <View style={styles.infoBlock}>
               <Text style={styles.infoLabel}>Data da Alta</Text>
-              <Text style={styles.infoValue}>{formatarData(paciente.createdAt)}</Text>
+              <Text style={styles.infoValue}>{formatarData(paciente.dataAlta)}</Text>
             </View>
           </View>
         </View>
@@ -165,10 +178,12 @@ export default function RecordDetail() {
 
       </View>
     </ScrollView>
+  </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: '#EBEFF2' },
   container: { flex: 1, backgroundColor: '#EBEFF2' },
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#EBEFF2' },
   loadingText: { marginTop: 10, color: '#6B7280', fontSize: 16 },
