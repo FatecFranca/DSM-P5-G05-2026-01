@@ -18,8 +18,8 @@ import { useRouter } from 'expo-router';
 import axios from 'axios';
 import { Ionicons } from '@expo/vector-icons';
 
-const API_URL = 'http://192.168.15.8:3000/triagens';
-const API_RECEPCAO_URL = 'http://192.168.15.8:3000/recepcao';
+const API_URL = 'http://192.168.15.6:3000/triagens';
+const API_RECEPCAO_URL = 'http://192.168.15.6:3000/recepcao';
 
 type PacienteAguardando = {
   id: string;

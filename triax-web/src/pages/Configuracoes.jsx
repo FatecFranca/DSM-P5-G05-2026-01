@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Settings, Clock, Bot, Bell, Save } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
-import logoTriax from '../assets/logob.png'; // <-- IMPORTAÇÃO DA LOGO
+import logoTriax from '../assets/logob.png'; 
 import './Configuracoes.css';
 
 export default function Configuracoes() {
