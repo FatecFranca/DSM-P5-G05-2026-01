@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import logoTriax from '../assets/logob.png';
-import Sidebar from '../components/Sidebar'; // <-- IMPORTAÇÃO DO MENU NOVO
+import Sidebar from '../components/Sidebar'; 
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -16,7 +16,25 @@ export default function Dashboard() {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editId, setEditId] = useState(null);
-  const [formData, setFormData] = useState({ idRecepcao: null, nome: '', cpf: '', pa: '', temp: '', sat: '', cor: '#84CC16', iaScore: 100 });
+
+  // ATUALIZADO: Estado expandido com os campos necessários para alimentar a Inteligência Artificial
+  const [formData, setFormData] = useState({ 
+    idRecepcao: null, 
+    nome: '', 
+    cpf: '', 
+    pa: '', 
+    temp: '', 
+    sat: '', 
+    cor: '#84CC16', 
+    iaScore: 100,
+    // Novos campos para a IA
+    age: '',
+    heart_rate: '',
+    pain_level: '0',
+    chronic_disease_count: '0',
+    previous_er_visits: '0',
+    arrival_mode: 'walk_in'
+  });
 
   const dataAtual = new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
 
@@ -64,35 +82,104 @@ export default function Dashboard() {
 
   const iniciarTriagem = (paciente) => {
     setEditId(null);
-    setFormData({ idRecepcao: paciente.id, nome: paciente.nome, cpf: paciente.cpf || '', pa: '', temp: '', sat: '', cor: '#84CC16', iaScore: 100 });
+    setFormData({ 
+      idRecepcao: paciente.id, 
+      nome: paciente.nome, 
+      cpf: paciente.cpf || '', 
+      pa: '', 
+      temp: '', 
+      sat: '', 
+      cor: '#84CC16', 
+      iaScore: 100,
+      age: '',
+      heart_rate: '',
+      pain_level: '0',
+      chronic_disease_count: '0',
+      previous_er_visits: '0',
+      arrival_mode: 'walk_in'
+    });
     setIsModalOpen(true);
   };
 
+  // FUNÇÃO DE AUXÍLIO: Mapeia o número do nível do Manchester retornado pela IA para uma cor hexadecimal do seu sistema
+  const mapearNivelParaCor = (nivel) => {
+    switch(nivel) {
+      case 3: return '#EF4444'; // Emergência (Vermelho)
+      case 2: return '#F97316'; // Muito Urgente (Laranja)
+      case 1: return '#EAB308'; // Urgente (Amarelo)
+      case 0: return '#84CC16'; // Pouco Urgente (Verde)
+      default: return '#3B82F6'; // Não Urgente (Azul)
+    }
+  };
+
+  // INTEGRADO COM A IA: Função de salvar que consulta a API em Python antes de gravar no banco Node
   const handleSalvarTriagem = async (e) => {
     e.preventDefault();
     try {
+      let finalCor = formData.cor;
+      let finalIaScore = formData.iaScore;
+
+      // Só consultamos a IA se não for uma edição pura de dados estáticos
+      if (!editId) {
+        try {
+          // Extraindo o valor de pressão sistólica (ex: se digitar 120/80 ou 12/8, pega o primeiro valor)
+          const sistolica = parseFloat(formData.pa.split('/')[0]) || 120;
+
+          const respostaIA = await axios.post('http://localhost:8000/predict', {
+            age: parseFloat(formData.age) || 30.0,
+            heart_rate: parseFloat(formData.heart_rate) || 80.0,
+            systolic_blood_pressure: sistolica,
+            oxygen_saturation: parseFloat(formData.sat) || 98.0,
+            body_temperature: parseFloat(formData.temp) || 36.5,
+            pain_level: parseInt(formData.pain_level),
+            chronic_disease_count: parseInt(formData.chronic_disease_count),
+            previous_er_visits: parseInt(formData.previous_er_visits),
+            arrival_mode: formData.arrival_mode
+          });
+
+          // Define os valores automáticos com base no cálculo do modelo preditivo
+          finalIaScore = respostaIA.data.ia_score;
+          finalCor = mapearNivelParaCor(respostaIA.data.triage_level_suggested);
+        } catch (iaErr) {
+          console.error("A API da IA falhou ou está desligada. Salvando com valores padrões.", iaErr);
+        }
+      }
+
+      const dadosParaSalvar = { ...formData, cor: finalCor, iaScore: finalIaScore };
+
       if (editId) {
-        await axios.put(`http://localhost:3000/triagens/${editId}`, formData);
+        await axios.put(`http://localhost:3000/triagens/${editId}`, dadosParaSalvar);
       } else {
-        await axios.post('http://localhost:3000/triagens', formData);
+        await axios.post('http://localhost:3000/triagens', dadosParaSalvar);
         if (formData.idRecepcao) await axios.delete(`http://localhost:3000/recepcao/${formData.idRecepcao}`);
       }
+      
       setIsModalOpen(false);
       setEditId(null);
-      setFormData({ idRecepcao: null, nome: '', cpf: '', pa: '', temp: '', sat: '', cor: '#84CC16', iaScore: 100 });
+      setFormData({ 
+        idRecepcao: null, nome: '', cpf: '', pa: '', temp: '', sat: '', cor: '#84CC16', iaScore: 100,
+        age: '', heart_rate: '', pain_level: '0', chronic_disease_count: '0', previous_er_visits: '0', arrival_mode: 'walk_in'
+      });
       buscarPacientes();
     } catch (err) { alert("Erro ao salvar no banco de dados."); }
   };
 
   const abrirNovaTriagem = () => {
     setEditId(null);
-    setFormData({ idRecepcao: null, nome: '', cpf: '', pa: '', temp: '', sat: '', cor: '#84CC16', iaScore: 100 });
+    setFormData({ 
+      idRecepcao: null, nome: '', cpf: '', pa: '', temp: '', sat: '', cor: '#84CC16', iaScore: 100,
+      age: '', heart_rate: '', pain_level: '0', chronic_disease_count: '0', previous_er_visits: '0', arrival_mode: 'walk_in'
+    });
     setIsModalOpen(true);
   };
 
   const handleEditarPaciente = (paciente) => {
     setEditId(paciente.id);
-    setFormData({ idRecepcao: null, nome: paciente.nome, cpf: paciente.cpf || '', pa: paciente.pa, temp: paciente.temp, sat: paciente.sat, cor: paciente.cor, iaScore: paciente.iaScore });
+    setFormData({ 
+      idRecepcao: null, nome: paciente.nome, cpf: paciente.cpf || '', pa: paciente.pa, temp: paciente.temp, sat: paciente.sat, cor: paciente.cor, iaScore: paciente.iaScore,
+      age: paciente.age || '', heart_rate: paciente.heart_rate || '', pain_level: paciente.pain_level || '0', 
+      chronic_disease_count: paciente.chronic_disease_count || '0', previous_er_visits: paciente.previous_er_visits || '0', arrival_mode: paciente.arrival_mode || 'walk_in'
+    });
     setIsModalOpen(true);
   };
 
@@ -194,7 +281,6 @@ export default function Dashboard() {
   return (
     <div style={styles.appContainer}>
       
-      {/* MENU LATERAL OFICIAL */}
       <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
       <main style={styles.mainContent}>
@@ -212,25 +298,54 @@ export default function Dashboard() {
         {renderFilaAtiva()}
       </main>
 
-      {/* MODAL: NOVA TRIAGEM (IA) */}
+      {/* MODAL: NOVA TRIAGEM EXPANDIDO COM CAMPOS DO MODELO DE APRENDIZAGEM DE MÁQUINA */}
       {isModalOpen && (
         <div style={styles.modalOverlay}>
-          <div style={styles.modalContent}>
+          <div style={{...styles.modalContent, width: '550px'}}>
             <h3 style={{ margin: 0 }}>{editId ? 'Editar Triagem' : 'Nova Triagem'}</h3>
-            <p style={{ fontSize: '12px', color: '#6B7280', marginBottom: '15px' }}>🤖 A IA fará a classificação automaticamente.</p>
+            <p style={{ fontSize: '12px', color: '#168C8C', marginBottom: '15px', fontWeight: 'bold' }}>🤖 O Modelo Random Forest gerará o risco e o score de gravidade.</p>
             <form onSubmit={handleSalvarTriagem} style={styles.modalForm}>
+              
               <div style={styles.modalInputRow}>
                 <input style={{...styles.modalInput, flex: 2}} placeholder="Nome Completo" value={formData.nome} onChange={e => setFormData({...formData, nome: e.target.value})} required />
                 <input style={{...styles.modalInput, flex: 1}} placeholder="CPF" maxLength="14" value={formData.cpf} onChange={e => setFormData({...formData, cpf: aplicarMascaraCPF(e.target.value)})} required />
               </div>
+
               <div style={styles.modalInputRow}>
-                <input style={{...styles.modalInput, flex: 1}} placeholder="PA (ex: 12/8)" value={formData.pa} onChange={e => setFormData({...formData, pa: e.target.value})} required />
-                <input style={{...styles.modalInput, flex: 1}} placeholder="Temp (°C)" value={formData.temp} onChange={e => setFormData({...formData, temp: e.target.value})} required />
-                <input style={{...styles.modalInput, flex: 1}} placeholder="Sat (%)" value={formData.sat} onChange={e => setFormData({...formData, sat: e.target.value})} required />
+                <input type="number" style={styles.modalInput} placeholder="Idade" value={formData.age} onChange={e => setFormData({...formData, age: e.target.value})} required />
+                <input style={styles.modalInput} placeholder="PA (ex: 12/8)" value={formData.pa} onChange={e => setFormData({...formData, pa: e.target.value})} required />
+                <input type="number" step="0.1" style={styles.modalInput} placeholder="Temp (°C)" value={formData.temp} onChange={e => setFormData({...formData, temp: e.target.value})} required />
               </div>
+
+              <div style={styles.modalInputRow}>
+                <input type="number" style={styles.modalInput} placeholder="Sat (%)" value={formData.sat} onChange={e => setFormData({...formData, sat: e.target.value})} required />
+                <input type="number" style={styles.modalInput} placeholder="Fq. Cardíaca (BPM)" value={formData.heart_rate} onChange={e => setFormData({...formData, heart_rate: e.target.value})} required />
+                
+                <select style={styles.modalInput} value={formData.arrival_mode} onChange={e => setFormData({...formData, arrival_mode: e.target.value})}>
+                  <option value="walk_in">Chegada: Andando</option>
+                  <option value="wheelchair">Chegada: Cadeira Rodas</option>
+                  <option value="ambulance">Chegada: Ambulância</option>
+                </select>
+              </div>
+
+              <div style={styles.modalInputRow}>
+                <div style={{flex: 1}}>
+                  <label style={{fontSize: '12px', color: '#666'}}>Nível de Dor (0-10)</label>
+                  <input type="number" min="0" max="10" style={styles.modalInput} value={formData.pain_level} onChange={e => setFormData({...formData, pain_level: e.target.value})} required />
+                </div>
+                <div style={{flex: 1}}>
+                  <label style={{fontSize: '12px', color: '#666'}}>Doenças Crônicas</label>
+                  <input type="number" min="0" style={styles.modalInput} value={formData.chronic_disease_count} onChange={e => setFormData({...formData, chronic_disease_count: e.target.value})} required />
+                </div>
+                <div style={{flex: 1}}>
+                  <label style={{fontSize: '12px', color: '#666'}}>Visitas Recentes ER</label>
+                  <input type="number" min="0" style={styles.modalInput} value={formData.previous_er_visits} onChange={e => setFormData({...formData, previous_er_visits: e.target.value})} required />
+                </div>
+              </div>
+
               <div style={styles.modalButtons}>
                 <button type="button" onClick={() => setIsModalOpen(false)} style={styles.cancelBtn}>Cancelar</button>
-                <button type="submit" style={styles.saveBtn}>Salvar e Classificar</button>
+                <button type="submit" style={styles.saveBtn}>Salvar e Classificar com IA</button>
               </div>
             </form>
           </div>
@@ -295,7 +410,7 @@ const styles = {
   modalOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 },
   modalContent: { backgroundColor: '#FFF', padding: '30px', borderRadius: '12px', width: '500px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)', boxSizing: 'border-box' },
   modalForm: { display: 'flex', flexDirection: 'column', gap: '15px' },
-  modalInput: { padding: '12px', borderRadius: '8px', border: '1px solid #DDD', fontSize: '14px', width: '100%', boxSizing: 'border-box' },
+  modalInput: { padding: '12px', borderRadius: '8px', border: '1px solid #DDD', fontSize: '14px', width: '100%', boxSizing: 'border-box', backgroundColor: '#FFF', color: '#000' },
   modalInputRow: { display: 'flex', gap: '10px', width: '100%' },
   modalButtons: { display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' },
   cancelBtn: { padding: '10px 20px', borderRadius: '8px', border: 'none', cursor: 'pointer', backgroundColor: '#E5E7EB' },
