@@ -1,9 +1,11 @@
+require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { classificarPaciente } = require('./iaService'); // Importação da IA
+const axiosNode = require('axios'); 
 
 const app = express();
 const prisma = new PrismaClient();
@@ -11,12 +13,12 @@ const prisma = new PrismaClient();
 app.use(cors());
 app.use(express.json());
 
-// Uma senha secreta para gerar os tokens de login (em um projeto real, isso fica no arquivo .env)
-const JWT_SECRET = 'minha_chave_secreta_triax_123';
+// PUXANDO A CHAVE DIRETAMENTE DO SEU ARQUIVO .ENV
+const JWT_SECRET = process.env.JWT_SECRET;
 
-// ==========================================
+
 // ROTA 1: CADASTRO DE USUÁRIO
-// ==========================================
+
 app.post('/cadastro', async (req, res) => {
   try {
     const { nome, email, senha } = req.body;
@@ -47,9 +49,9 @@ app.post('/cadastro', async (req, res) => {
   }
 });
 
-// ==========================================
+
 // ROTA 2: LOGIN DE USUÁRIO
-// ==========================================
+
 app.post('/login', async (req, res) => {
   try {
     const { email, senha } = req.body;
@@ -76,9 +78,9 @@ app.post('/login', async (req, res) => {
   }
 });
 
-// ==========================================
-// ROTAS DE TRIAGEM (COM IA INTEGRADA E CPF)
-// ==========================================
+
+// ROTAS DE TRIAGEM (INTEGRADAS COM A API PYTHON NA PORTA 8000)
+
 
 // ROTA: Listar todas as triagens
 app.get('/triagens', async (req, res) => {
@@ -91,17 +93,57 @@ app.get('/triagens', async (req, res) => {
   }
 });
 
-// ROTA: Criar nova triagem (COM INTELIGÊNCIA ARTIFICIAL)
+// ROTA: Criar nova triagem (BUSCANDO DADOS DO MODELO .PKL NO PYTHON)
 app.post('/triagens', async (req, res) => {
   try {
-    const { nome, cpf, pa, temp, sat } = req.body;
+    const { 
+      nome, cpf, pa, temp, sat,
+      age, heart_rate, pain_level, chronic_disease_count, previous_er_visits, arrival_mode 
+    } = req.body;
 
-    const paSistolica = Number(pa.split('/')[0]) * 10; 
-    const temperaturaNum = Number(temp.replace(',', '.'));
-    const saturacaoNum = Number(sat.replace('%', ''));
+    // Tratamento e conversão dos dados vitais vindos do Front
+    const paSistolica = Number(pa.split('/')[0]); 
+    const temperaturaNum = Number(String(temp).replace(',', '.'));
+    const saturacaoNum = Number(String(sat).replace('%', ''));
 
-    const resultadoIA = classificarPaciente(paSistolica, temperaturaNum, saturacaoNum);
+    // Configuração padrão de Fallback (Caso a IA esteja offline)
+    let corFinal = '#EAB308'; // Amarelo de segurança
+    let scoreFinal = 75;
 
+    // REPASSA OS DADOS PARA A API FASTAPI DO PYTHON DO SEU GRUPO
+    try {
+      const respostaIA = await axiosNode.post('http://localhost:8000/predict', {
+        age: parseFloat(age) || 30.0,
+        heart_rate: parseFloat(heart_rate) || 80.0,
+        systolic_blood_pressure: paSistolica || 120.0,
+        oxygen_saturation: saturacaoNum || 98.0,
+        body_temperature: temperaturaNum || 36.5,
+        pain_level: parseInt(pain_level) || 0,
+        chronic_disease_count: parseInt(chronic_disease_count) || 0,
+        previous_er_visits: parseInt(previous_er_visits) || 0,
+        arrival_mode: arrival_mode || 'walk_in'
+      });
+
+      // Mapeia o número retornado pelo Random Forest para o padrão Hexadecimal do Front
+      const mapearNivelParaCor = (nivel) => {
+        switch(nivel) {
+          case 3: return '#EF4444'; // Emergência (Vermelho)
+          case 2: return '#F97316'; // Muito Urgente (Laranja)
+          case 1: return '#EAB308'; // Urgente (Amarelo)
+          case 0: return '#84CC16'; // Pouco Urgente (Verde)
+          default: return '#3B82F6'; // Não Urgente (Azul)
+        }
+      };
+
+      corFinal = mapearNivelParaCor(respostaIA.data.triage_level_suggested);
+      scoreFinal = respostaIA.data.ia_score;
+
+      console.log(`🤖 IA respondeu com sucesso! Cor: ${corFinal} | Score: ${scoreFinal}%`);
+    } catch (errorPython) {
+      console.warn("⚠️ API Python indisponível ou offline. Assumindo valores padrões de segurança.");
+    }
+
+    // Salva o registro final calculado no banco SQLite via Prisma
     const nova = await prisma.triagem.create({
       data: { 
         nome, 
@@ -109,8 +151,8 @@ app.post('/triagens', async (req, res) => {
         pa, 
         temp, 
         sat, 
-        cor: resultadoIA.corPredita, 
-        iaScore: resultadoIA.iaScore 
+        cor: corFinal, 
+        iaScore: scoreFinal 
       }
     });
 
@@ -121,19 +163,52 @@ app.post('/triagens', async (req, res) => {
   }
 });
 
-// ROTA: Editar triagem existente (COM RECALCULO DA IA)
+// ROTA: Editar triagem existente (COM RECALCULO DA IA NO PYTHON)
 app.put('/triagens/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { nome, cpf, pa, temp, sat } = req.body; 
+    const { 
+      nome, cpf, pa, temp, sat,
+      age, heart_rate, pain_level, chronic_disease_count, previous_er_visits, arrival_mode 
+    } = req.body; 
     
-    const paSistolica = Number(pa.split('/')[0]) * 10; 
+    const paSistolica = Number(pa.split('/')[0]); 
     const temperaturaNum = Number(String(temp).replace(',', '.'));
     const saturacaoNum = Number(String(sat).replace('%', ''));
 
-    const resultadoIA = classificarPaciente(paSistolica, temperaturaNum, saturacaoNum);
+    let corFinal = '#EAB308';
+    let scoreFinal = 75;
+
+    try {
+      const respostaIA = await axiosNode.post('http://localhost:8000/predict', {
+        age: parseFloat(age) || 30.0,
+        heart_rate: parseFloat(heart_rate) || 80.0,
+        systolic_blood_pressure: paSistolica || 120.0,
+        oxygen_saturation: saturacaoNum || 98.0,
+        body_temperature: temperaturaNum || 36.5,
+        pain_level: parseInt(pain_level) || 0,
+        chronic_disease_count: parseInt(chronic_disease_count) || 0,
+        previous_er_visits: parseInt(previous_er_visits) || 0,
+        arrival_mode: arrival_mode || 'walk_in'
+      });
+
+      const mapearNivelParaCor = (nivel) => {
+        switch(nivel) {
+          case 3: return '#EF4444';
+          case 2: return '#F97316';
+          case 1: return '#EAB308';
+          case 0: return '#84CC16';
+          default: return '#3B82F6';
+        }
+      };
+
+      corFinal = mapearNivelParaCor(respostaIA.data.triage_level_suggested);
+      scoreFinal = respostaIA.data.ia_score;
+    } catch (errorPython) {
+      console.warn("⚠️ API Python offline durante a edição de dados.");
+    }
     
-    const atualizada = await prisma.triagem.update({
+    const updated = await prisma.triagem.update({
       where: { id: Number(id) },
       data: { 
         nome, 
@@ -141,20 +216,20 @@ app.put('/triagens/:id', async (req, res) => {
         pa, 
         temp, 
         sat, 
-        cor: resultadoIA.corPredita, 
-        iaScore: resultadoIA.iaScore 
+        cor: corFinal, 
+        iaScore: scoreFinal 
       } 
     });
-    res.json(atualizada);
+    res.json(updated);
   } catch (error) {
     console.error("Erro ao atualizar e reclassificar paciente:", error);
     res.status(500).json({ error: "Erro ao atualizar e reclassificar paciente." });
   }
 });
 
-// ==========================================
+
 // ROTA: FILA DE RECEPÇÃO
-// ==========================================
+
 
 // Buscar quem está aguardando
 app.get('/recepcao', async (req, res) => {
@@ -197,9 +272,9 @@ app.delete('/recepcao/:id', async (req, res) => {
   }
 });
 
-// ==========================================
+
 // ROTA DE HISTÓRICO E ALTA
-// ==========================================
+
 
 // Buscar o histórico de pacientes que já tiveram alta
 app.get('/historico', async (req, res) => {
@@ -214,12 +289,11 @@ app.get('/historico', async (req, res) => {
   }
 });
 
-// ROTA NOVA AQUI: Buscar detalhes de um prontuário específico do histórico
+// Buscar detalhes de um prontuário específico do histórico
 app.get('/historico/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
-    // TRAVA DE SEGURANÇA: Verifica se não enviaram a palavra 'undefined' ou letras
     if (!id || isNaN(Number(id))) {
       return res.status(400).json({ erro: "ID do prontuário inválido." });
     }
@@ -239,18 +313,16 @@ app.get('/historico/:id', async (req, res) => {
   }
 });
 
-// ROTA ATUALIZADA: Deletar triagem E salvar no Histórico
+// Deletar triagem E salvar no Histórico
 app.delete('/triagens/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
-    // 1. Busca o paciente antes de deletar
     const paciente = await prisma.triagem.findUnique({
       where: { id: Number(id) }
     });
 
     if (paciente) {
-      // 2. Salva no histórico
       await prisma.historico.create({
         data: {
           nome: paciente.nome,
@@ -264,7 +336,6 @@ app.delete('/triagens/:id', async (req, res) => {
       });
     }
 
-    // 3. Deleta da fila ativa
     await prisma.triagem.delete({
       where: { id: Number(id) }
     });
@@ -281,9 +352,9 @@ app.get('/', (req, res) => {
   res.send('Servidor do TRIAX rodando com IA Ativa!');
 });
 
-// ==========================================
+
 // INICIALIZAÇÃO DO SERVIDOR 
-// ==========================================
+
 const PORT = 3000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Servidor rodando na porta http://localhost:${PORT}`);
