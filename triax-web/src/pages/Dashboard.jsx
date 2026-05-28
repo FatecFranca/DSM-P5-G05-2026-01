@@ -40,7 +40,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     buscarPacientes();
-    const interval = setInterval(() => { buscarPacientes(); }, 3000);
+    const interval = setInterval(() => { buscarPacientes(); }, 15000);
     const handleKeyDown = (e) => { if (e.altKey && e.key.toLowerCase() === 'n') abrirNovaTriagem(); };
     window.addEventListener('keydown', handleKeyDown);
     return () => { clearInterval(interval); window.removeEventListener('keydown', handleKeyDown); };
