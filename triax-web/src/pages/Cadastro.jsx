@@ -20,7 +20,7 @@ export default function Cadastro() {
     }
 
     try {
-      const response = await axios.post('http://localhost:3000/cadastro', {
+      const response = await axios.post('http://135.233.99.47:3000/cadastro', {
         nome,
         email,
         senha

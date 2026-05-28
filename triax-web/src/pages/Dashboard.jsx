@@ -48,9 +48,9 @@ export default function Dashboard() {
 
   const buscarPacientes = async () => {
     try {
-      const resTriagens = await axios.get('http://localhost:3000/triagens');
+      const resTriagens = await axios.get('http://135.233.99.47:3000/triagens');
       setPacientes(resTriagens.data);
-      const resRecepcao = await axios.get('http://localhost:3000/recepcao');
+      const resRecepcao = await axios.get('http://135.233.99.47:3000/recepcao');
       setPacientesAguardando(resRecepcao.data);
     } catch (err) {
       console.error("Erro ao carregar banco de dados", err);
@@ -73,7 +73,7 @@ export default function Dashboard() {
     const horas = String(agora.getHours()).padStart(2, '0');
     const minutos = String(agora.getMinutes()).padStart(2, '0');
     try {
-      await axios.post('http://localhost:3000/recepcao', { nome: recepcaoData.nome, cpf: recepcaoData.cpf, entrada: `${horas}:${minutos}` });
+      await axios.post('http://135.233.99.47:3000/recepcao', { nome: recepcaoData.nome, cpf: recepcaoData.cpf, entrada: `${horas}:${minutos}` });
       setRecepcaoData({ nome: '', cpf: '' });
       setIsRecepcaoModalOpen(false);
       buscarPacientes();
@@ -125,21 +125,9 @@ export default function Dashboard() {
           // Extraindo o valor de pressão sistólica (ex: se digitar 120/80 ou 12/8, pega o primeiro valor)
           const sistolica = parseFloat(formData.pa.split('/')[0]) || 120;
 
-          const respostaIA = await axios.post('http://localhost:8000/predict', {
-            age: parseFloat(formData.age) || 30.0,
-            heart_rate: parseFloat(formData.heart_rate) || 80.0,
-            systolic_blood_pressure: sistolica,
-            oxygen_saturation: parseFloat(formData.sat) || 98.0,
-            body_temperature: parseFloat(formData.temp) || 36.5,
-            pain_level: parseInt(formData.pain_level),
-            chronic_disease_count: parseInt(formData.chronic_disease_count),
-            previous_er_visits: parseInt(formData.previous_er_visits),
-            arrival_mode: formData.arrival_mode
-          });
-
+         
           // Define os valores automáticos com base no cálculo do modelo preditivo
-          finalIaScore = respostaIA.data.ia_score;
-          finalCor = mapearNivelParaCor(respostaIA.data.triage_level_suggested);
+
         } catch (iaErr) {
           console.error("A API da IA falhou ou está desligada. Salvando com valores padrões.", iaErr);
         }
@@ -148,10 +136,10 @@ export default function Dashboard() {
       const dadosParaSalvar = { ...formData, cor: finalCor, iaScore: finalIaScore };
 
       if (editId) {
-        await axios.put(`http://localhost:3000/triagens/${editId}`, dadosParaSalvar);
+        await axios.put(`http://135.233.99.47:3000/triagens/${editId}`, dadosParaSalvar);
       } else {
-        await axios.post('http://localhost:3000/triagens', dadosParaSalvar);
-        if (formData.idRecepcao) await axios.delete(`http://localhost:3000/recepcao/${formData.idRecepcao}`);
+        await axios.post('http://135.233.99.47:3000/triagens', dadosParaSalvar);
+        if (formData.idRecepcao) await axios.delete(`http://135.233.99.47:3000/recepcao/${formData.idRecepcao}`);
       }
       
       setIsModalOpen(false);

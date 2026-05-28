@@ -21,7 +21,7 @@ export default function Historico() {
 
   const buscarHistorico = async () => {
     try {
-      const res = await axios.get('http://localhost:3000/triagens');
+      const res = await axios.get('http://135.233.99.47:3000/triagens');
       setHistorico(res.data);
     } catch (err) {
       console.error("Erro ao carregar histórico", err);
@@ -31,7 +31,7 @@ export default function Historico() {
   const handleDeletar = async (id) => {
     if (window.confirm("Tem certeza que deseja excluir este registro? Isso apagará do banco de dados.")) {
       try {
-        await axios.delete(`http://localhost:3000/triagens/${id}`);
+        await axios.delete(`http://135.233.99.47:3000/triagens/${id}`);
         buscarHistorico();
         setProntuarioAberto(false); 
       } catch (err) {
