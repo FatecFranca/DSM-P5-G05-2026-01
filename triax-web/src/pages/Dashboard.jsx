@@ -298,58 +298,429 @@ export default function Dashboard() {
         {renderFilaAtiva()}
       </main>
 
-      {/* MODAL: NOVA TRIAGEM EXPANDIDO COM CAMPOS DO MODELO DE APRENDIZAGEM DE MÁQUINA */}
+           {/* MODAL: NOVA TRIAGEM */}
       {isModalOpen && (
-        <div style={styles.modalOverlay}>
-          <div style={{...styles.modalContent, width: '550px'}}>
-            <h3 style={{ margin: 0 }}>{editId ? 'Editar Triagem' : 'Nova Triagem'}</h3>
-            <p style={{ fontSize: '12px', color: '#168C8C', marginBottom: '15px', fontWeight: 'bold' }}>🤖 O Modelo Random Forest gerará o risco e o score de gravidade.</p>
-            <form onSubmit={handleSalvarTriagem} style={styles.modalForm}>
+        <>
+          <style>{`
+            input[type=number]::-webkit-inner-spin-button,
+            input[type=number]::-webkit-outer-spin-button {
+              -webkit-appearance: none;
+              margin: 0;
+            }
+
+            input[type=number] {
+              -moz-appearance: textfield;
+              appearance: textfield;
+            }
+
+            select {
+              appearance: none;
+              -webkit-appearance: none;
+              -moz-appearance: none;
+              background: none;
+            }
+          `}</style>
+
+          <div style={styles.modalOverlay}>
+            <div style={{ ...styles.modalContent, width: '550px' }}>
               
-              <div style={styles.modalInputRow}>
-                <input style={{...styles.modalInput, flex: 2}} placeholder="Nome Completo" value={formData.nome} onChange={e => setFormData({...formData, nome: e.target.value})} required />
-                <input style={{...styles.modalInput, flex: 1}} placeholder="CPF" maxLength="14" value={formData.cpf} onChange={e => setFormData({...formData, cpf: aplicarMascaraCPF(e.target.value)})} required />
-              </div>
+              <h3 style={{ margin: 0 }}>
+                {editId ? 'Editar Triagem' : 'Nova Triagem'}
+              </h3>
 
-              <div style={styles.modalInputRow}>
-                <input type="number" style={styles.modalInput} placeholder="Idade" value={formData.age} onChange={e => setFormData({...formData, age: e.target.value})} required />
-                <input style={styles.modalInput} placeholder="PA (ex: 12/8)" value={formData.pa} onChange={e => setFormData({...formData, pa: e.target.value})} required />
-                <input type="number" step="0.1" style={styles.modalInput} placeholder="Temp (°C)" value={formData.temp} onChange={e => setFormData({...formData, temp: e.target.value})} required />
-              </div>
+              <p
+                style={{
+                  fontSize: '12px',
+                  color: '#168C8C',
+                  marginBottom: '15px',
+                  fontWeight: 'bold'
+                }}
+              >
+                🤖 O Modelo Random Forest gerará o risco e o score de gravidade.
+              </p>
 
-              <div style={styles.modalInputRow}>
-                <input type="number" style={styles.modalInput} placeholder="Sat (%)" value={formData.sat} onChange={e => setFormData({...formData, sat: e.target.value})} required />
-                <input type="number" style={styles.modalInput} placeholder="Fq. Cardíaca (BPM)" value={formData.heart_rate} onChange={e => setFormData({...formData, heart_rate: e.target.value})} required />
-                
-                <select style={styles.modalInput} value={formData.arrival_mode} onChange={e => setFormData({...formData, arrival_mode: e.target.value})}>
-                  <option value="walk_in">Chegada: Andando</option>
-                  <option value="wheelchair">Chegada: Cadeira Rodas</option>
-                  <option value="ambulance">Chegada: Ambulância</option>
-                </select>
-              </div>
+              <form onSubmit={handleSalvarTriagem} style={styles.modalForm}>
 
-              <div style={styles.modalInputRow}>
-                <div style={{flex: 1}}>
-                  <label style={{fontSize: '12px', color: '#666'}}>Nível de Dor (0-10)</label>
-                  <input type="number" min="0" max="10" style={styles.modalInput} value={formData.pain_level} onChange={e => setFormData({...formData, pain_level: e.target.value})} required />
+                {/* Nome e CPF */}
+                <div style={styles.modalInputRow}>
+
+                  <div
+                    style={{
+                      flex: 2,
+                      display: 'flex',
+                      flexDirection: 'column'
+                    }}
+                  >
+                    <label
+                      style={{
+                        fontSize: '12px',
+                        color: '#666',
+                        marginBottom: 2
+                      }}
+                    >
+                      Nome Completo
+                    </label>
+
+                    <input
+                      style={styles.modalInput}
+                      value={formData.nome}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          nome: e.target.value
+                        })
+                      }
+                      required
+                    />
+                  </div>
+
+                  <div
+                    style={{
+                      flex: 1,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      marginLeft: 8
+                    }}
+                  >
+                    <label
+                      style={{
+                        fontSize: '12px',
+                        color: '#666',
+                        marginBottom: 2
+                      }}
+                    >
+                      CPF
+                    </label>
+
+                    <input
+                      style={styles.modalInput}
+                      maxLength="14"
+                      value={formData.cpf}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          cpf: aplicarMascaraCPF(e.target.value)
+                        })
+                      }
+                      required
+                    />
+                  </div>
+
                 </div>
-                <div style={{flex: 1}}>
-                  <label style={{fontSize: '12px', color: '#666'}}>Doenças Crônicas</label>
-                  <input type="number" min="0" style={styles.modalInput} value={formData.chronic_disease_count} onChange={e => setFormData({...formData, chronic_disease_count: e.target.value})} required />
-                </div>
-                <div style={{flex: 1}}>
-                  <label style={{fontSize: '12px', color: '#666'}}>Visitas Recentes ER</label>
-                  <input type="number" min="0" style={styles.modalInput} value={formData.previous_er_visits} onChange={e => setFormData({...formData, previous_er_visits: e.target.value})} required />
-                </div>
-              </div>
 
-              <div style={styles.modalButtons}>
-                <button type="button" onClick={() => setIsModalOpen(false)} style={styles.cancelBtn}>Cancelar</button>
-                <button type="submit" style={styles.saveBtn}>Salvar e Classificar com IA</button>
-              </div>
-            </form>
+                {/* Idade, PA e Temperatura */}
+                <div style={styles.modalInputRow}>
+
+                  <div
+                    style={{
+                      flex: 1,
+                      display: 'flex',
+                      flexDirection: 'column'
+                    }}
+                  >
+                    <label
+                      style={{
+                        fontSize: '12px',
+                        color: '#666',
+                        marginBottom: 2
+                      }}
+                    >
+                      Idade
+                    </label>
+
+                    <input
+                      type="number"
+                      style={styles.modalInput}
+                      value={formData.age}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          age: e.target.value
+                        })
+                      }
+                      required
+                    />
+                  </div>
+
+                  <div
+                    style={{
+                      flex: 1,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      marginLeft: 8
+                    }}
+                  >
+                    <label
+                      style={{
+                        fontSize: '12px',
+                        color: '#666',
+                        marginBottom: 2
+                      }}
+                    >
+                      PA (ex: 12/8)
+                    </label>
+
+                    <input
+                      style={styles.modalInput}
+                      value={formData.pa}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          pa: e.target.value
+                        })
+                      }
+                      required
+                    />
+                  </div>
+
+                  <div
+                    style={{
+                      flex: 1,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      marginLeft: 8
+                    }}
+                  >
+                    <label
+                      style={{
+                        fontSize: '12px',
+                        color: '#666',
+                        marginBottom: 2
+                      }}
+                    >
+                      Temp (°C)
+                    </label>
+
+                    <input
+                      type="number"
+                      step="0.1"
+                      style={styles.modalInput}
+                      value={formData.temp}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          temp: e.target.value
+                        })
+                      }
+                      required
+                    />
+                  </div>
+
+                </div>
+
+                {/* Saturação, Frequência e Chegada */}
+                <div style={styles.modalInputRow}>
+
+                  <div
+                    style={{
+                      flex: 1,
+                      display: 'flex',
+                      flexDirection: 'column'
+                    }}
+                  >
+                    <label
+                      style={{
+                        fontSize: '12px',
+                        color: '#666',
+                        marginBottom: 2
+                      }}
+                    >
+                      Sat (%)
+                    </label>
+
+                    <input
+                      type="number"
+                      style={styles.modalInput}
+                      value={formData.sat}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          sat: e.target.value
+                        })
+                      }
+                      required
+                    />
+                  </div>
+
+                  <div
+                    style={{
+                      flex: 1,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      marginLeft: 8
+                    }}
+                  >
+                    <label
+                      style={{
+                        fontSize: '12px',
+                        color: '#666',
+                        marginBottom: 2
+                      }}
+                    >
+                      Fq. Cardíaca (BPM)
+                    </label>
+
+                    <input
+                      type="number"
+                      style={styles.modalInput}
+                      value={formData.heart_rate}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          heart_rate: e.target.value
+                        })
+                      }
+                      required
+                    />
+                  </div>
+
+                  <div
+                    style={{
+                      flex: 1,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      marginLeft: 8
+                    }}
+                  >
+                    <label
+                      style={{
+                        fontSize: '12px',
+                        color: '#666',
+                        marginBottom: 2
+                      }}
+                    >
+                      Chegada
+                    </label>
+
+                    <select
+                      style={styles.modalInput}
+                      value={formData.arrival_mode}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          arrival_mode: e.target.value
+                        })
+                      }
+                    >
+                      <option value="walk_in">Andando</option>
+                      <option value="wheelchair">Cadeira Rodas</option>
+                      <option value="ambulance">Ambulância</option>
+                    </select>
+                  </div>
+
+                </div>
+
+                {/* Dor, doenças e visitas */}
+                <div style={styles.modalInputRow}>
+
+                  <div
+                    style={{
+                      flex: 1,
+                      display: 'flex',
+                      flexDirection: 'column'
+                    }}
+                  >
+                    <label style={{ fontSize: '12px', color: '#666' }}>
+                      Nível de Dor (0-10)
+                    </label>
+
+                    <input
+                      type="number"
+                      min="0"
+                      max="10"
+                      style={styles.modalInput}
+                      value={formData.pain_level}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          pain_level: e.target.value
+                        })
+                      }
+                      required
+                    />
+                  </div>
+
+                  <div
+                    style={{
+                      flex: 1,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      marginLeft: 8
+                    }}
+                  >
+                    <label style={{ fontSize: '12px', color: '#666' }}>
+                      Doenças Crônicas
+                    </label>
+
+                    <input
+                      type="number"
+                      min="0"
+                      style={styles.modalInput}
+                      value={formData.chronic_disease_count}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          chronic_disease_count: e.target.value
+                        })
+                      }
+                      required
+                    />
+                  </div>
+
+                  <div
+                    style={{
+                      flex: 1,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      marginLeft: 8
+                    }}
+                  >
+                    <label style={{ fontSize: '12px', color: '#666' }}>
+                      Visitas Recentes ER
+                    </label>
+
+                    <input
+                      type="number"
+                      min="0"
+                      style={styles.modalInput}
+                      value={formData.previous_er_visits}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          previous_er_visits: e.target.value
+                        })
+                      }
+                      required
+                    />
+                  </div>
+
+                </div>
+
+                {/* Botões */}
+                <div style={styles.modalButtons}>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsModalOpen(false)}
+                    style={styles.cancelBtn}
+                  >
+                    Cancelar
+                  </button>
+
+                  <button
+                    type="submit"
+                    style={styles.saveBtn}
+                  >
+                    Salvar e Classificar com IA
+                  </button>
+
+                </div>
+
+              </form>
+
+            </div>
           </div>
-        </div>
+        </>
       )}
 
       {/* MODAL: RECEPÇÃO */}
