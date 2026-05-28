@@ -18,6 +18,7 @@ Para o ecossistema funcionar de ponta a ponta, abra **três terminais separados*
 ```
 cd triax-ia
 # Ativar ambiente (se houver): .venv\Scripts\activate
+pip install -r requirements.txt
 python -m uvicorn api_ia:app --reload --port 8000
 ```
 
