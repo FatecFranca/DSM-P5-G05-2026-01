@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 
 // A sua URL atualizada com o IP correto!
-const API_URL = 'http://192.168.15.6:3000/historico';
+const API_URL = 'http://135.233.99.47:3000/historico';
 
 type Prontuario = {
   id: number;

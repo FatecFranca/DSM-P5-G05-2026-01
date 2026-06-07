@@ -19,7 +19,7 @@ export const options = {
   title: '',
 };
 
-const API_URL = 'http://192.168.15.6:3000/cadastro';
+const API_URL = 'http://135.233.99.47:3000/cadastro';
 
 export default function RegisterScreen() {
   const router = useRouter();

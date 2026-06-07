@@ -11,7 +11,7 @@ export default function HistoryScreen() {
   const [loading, setLoading] = useState(true);
 
   // O IP da sua máquina com a porta do Back-end
-  const API_URL = 'http://192.168.15.6:3000';
+  const API_URL = 'http://135.233.99.47:3000';
 
   useEffect(() => {
     buscarHistorico();
