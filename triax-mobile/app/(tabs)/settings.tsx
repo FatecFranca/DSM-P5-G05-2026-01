@@ -25,7 +25,7 @@ export default function SettingsScreen() {
       onMoveShouldSetPanResponder: (evt, gestureState) => Math.abs(gestureState.dx) > 30 && Math.abs(gestureState.dy) < 10,
       onPanResponderRelease: (evt, gestureState) => {
         if (gestureState.dx > 50) {
-          router.back();
+          router.replace('/triage');
         }
       },
     })
@@ -57,7 +57,7 @@ export default function SettingsScreen() {
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         {/* Cabeçalho */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <TouchableOpacity onPress={() => router.replace('/triage')} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color="#168C8C" />
           </TouchableOpacity>
           <Text style={styles.pageTitle}>Configurações</Text>

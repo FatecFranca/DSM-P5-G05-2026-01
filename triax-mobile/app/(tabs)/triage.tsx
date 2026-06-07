@@ -47,6 +47,12 @@ type FormData = {
   pa: string;
   temp: string;
   sat: string;
+  age: string;
+  heart_rate: string;
+  pain_level: string;
+  chronic_disease_count: string;
+  previous_er_visits: string;
+  arrival_mode: string;
 };
 
 const formatCpf = (value: string) => {
@@ -55,6 +61,22 @@ const formatCpf = (value: string) => {
   if (digits.length > 6) return digits.replace(/(\d{3})(\d{3})(\d{1,3})/, '$1.$2.$3');
   if (digits.length > 3) return digits.replace(/(\d{3})(\d{1,3})/, '$1.$2');
   return digits;
+};
+
+const formDataInicial: FormData = {
+  id: '',
+  idRecepcao: null,
+  nome: '',
+  cpf: '',
+  pa: '',
+  temp: '',
+  sat: '',
+  age: '',
+  heart_rate: '',
+  pain_level: '0',
+  chronic_disease_count: '0',
+  previous_er_visits: '0',
+  arrival_mode: 'walk_in',
 };
 
 export default function DashboardScreen() {
@@ -71,10 +93,11 @@ export default function DashboardScreen() {
   const [pacientesAguardando, setPacientesAguardando] = useState<PacienteAguardando[]>([]);
   const [menuVisivel, setMenuVisivel] = useState(false);
   
-  const [formData, setFormData] = useState<FormData>({ id: '', idRecepcao: null, nome: '', cpf: '', pa: '', temp: '', sat: '' });
+  const [formData, setFormData] = useState<FormData>(formDataInicial);
+
   const [isCarregando, setIsCarregando] = useState(false);
 
-  const navegarPara = (rota: '/triage' | '/history') => {
+  const navegarPara = (rota: '/triage' | '/history' | '/settings') => {
     setMenuVisivel(false);
     router.push(rota);
   };
@@ -131,8 +154,16 @@ export default function DashboardScreen() {
   };
 
   const handleClassificar = async () => {
-    if (!formData.nome || !formData.cpf || !formData.pa || !formData.temp || !formData.sat) {
-      Alert.alert('Atenção', 'Preencha todos os campos obrigatórios (CPF incluso)!');
+    if (
+      !formData.nome ||
+      !formData.cpf ||
+      !formData.pa ||
+      !formData.temp ||
+      !formData.sat ||
+      !formData.age ||
+      !formData.heart_rate
+    ) {
+      Alert.alert('Atenção', 'Preencha todos os campos obrigatórios!');
       return;
     }
 
@@ -152,7 +183,7 @@ export default function DashboardScreen() {
       }
 
       setModalVisible(false);
-      setFormData({ id: '', idRecepcao: null, nome: '', cpf: '', pa: '', temp: '', sat: '' });
+      setFormData(formDataInicial);
       fetchPacientes();
     } catch (error) {
       Alert.alert('Erro', 'Não foi possível salvar a triagem.');
@@ -162,7 +193,7 @@ export default function DashboardScreen() {
   };
 
   const iniciarTriagem = (paciente: PacienteAguardando) => {
-    setFormData({ id: '', idRecepcao: paciente.id, nome: paciente.nome, cpf: paciente.cpf || '', pa: '', temp: '', sat: '' });
+    setFormData({ ...formDataInicial, idRecepcao: paciente.id, nome: paciente.nome, cpf: paciente.cpf || '' });
     setModalVisible(true);
   };
 
@@ -174,6 +205,7 @@ export default function DashboardScreen() {
   const prepararEdicao = () => {
     if (!pacienteSelecionado) return;
     setFormData({
+      ...formDataInicial,
       id: pacienteSelecionado.id,
       idRecepcao: null,
       nome: pacienteSelecionado.nome,
@@ -366,7 +398,7 @@ export default function DashboardScreen() {
       </ScrollView>
 
       <TouchableOpacity style={styles.fab} onPress={() => {
-          setFormData({ id: '', idRecepcao: null, nome: '', cpf: '', pa: '', temp: '', sat: '' });
+          setFormData(formDataInicial);
           setModalVisible(true);
         }}
       >
@@ -464,7 +496,7 @@ export default function DashboardScreen() {
             </View>
             <Text style={styles.modalSubtitle}>A IA fará a classificação pelo Protocolo de Manchester.</Text>
 
-            <ScrollView>
+            <ScrollView showsVerticalScrollIndicator={false}>
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Nome Completo</Text>
                 <TextInput
@@ -489,21 +521,160 @@ export default function DashboardScreen() {
 
               <View style={styles.row}>
                 <View style={styles.halfInput}>
-                  <Text style={styles.label}>P.A.</Text>
-                  <TextInput style={styles.input} placeholder="12/8" value={formData.pa} onChangeText={text => setFormData({ ...formData, pa: text })} />
+                  <Text style={styles.label}>Idade</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="27"
+                    keyboardType="numeric"
+                    value={formData.age}
+                    onChangeText={text => setFormData({ ...formData, age: text })}
+                  />
                 </View>
+
                 <View style={styles.halfInput}>
-                  <Text style={styles.label}>Temp.</Text>
-                  <TextInput style={styles.input} placeholder="37.5" keyboardType="numeric" value={formData.temp} onChangeText={text => setFormData({ ...formData, temp: text })} />
-                </View>
-                <View style={styles.halfInput}>
-                  <Text style={styles.label}>Sat. (%)</Text>
-                  <TextInput style={styles.input} placeholder="98" keyboardType="numeric" value={formData.sat} onChangeText={text => setFormData({ ...formData, sat: text })} />
+                  <Text style={styles.label}>P.A. (ex: 12/8)</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="12/8"
+                    value={formData.pa}
+                    onChangeText={text => setFormData({ ...formData, pa: text })}
+                  />
                 </View>
               </View>
 
+              <View style={styles.row}>
+                <View style={styles.halfInput}>
+                  <Text style={styles.label}>Temp (°C)</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="37"
+                    keyboardType="numeric"
+                    value={formData.temp}
+                    onChangeText={text => setFormData({ ...formData, temp: text })}
+                  />
+                </View>
+
+                <View style={styles.halfInput}>
+                  <Text style={styles.label}>Sat (%)</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="98"
+                    keyboardType="numeric"
+                    value={formData.sat}
+                    onChangeText={text => setFormData({ ...formData, sat: text })}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.row}>
+                <View style={styles.halfInput}>
+                  <Text style={styles.label}>Fq. Cardíaca (BPM)</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="80"
+                    keyboardType="numeric"
+                    value={formData.heart_rate}
+                    onChangeText={text => setFormData({ ...formData, heart_rate: text })}
+                  />
+                </View>
+
+                <View style={styles.halfInput}>
+                  <Text style={styles.label}>Chegada</Text>
+
+                  <View style={styles.chegadaContainer}>
+                    <TouchableOpacity
+                      style={[
+                        styles.chegadaButton,
+                        formData.arrival_mode === 'walk_in' && styles.chegadaButtonActive,
+                      ]}
+                      onPress={() => setFormData({ ...formData, arrival_mode: 'walk_in' })}
+                    >
+                      <Text
+                        style={[
+                          styles.chegadaButtonText,
+                          formData.arrival_mode === 'walk_in' && styles.chegadaButtonTextActive,
+                        ]}
+                      >
+                        Andando
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[
+                        styles.chegadaButton,
+                        formData.arrival_mode === 'wheelchair' && styles.chegadaButtonActive,
+                      ]}
+                      onPress={() => setFormData({ ...formData, arrival_mode: 'wheelchair' })}
+                    >
+                      <Text
+                        style={[
+                          styles.chegadaButtonText,
+                          formData.arrival_mode === 'wheelchair' && styles.chegadaButtonTextActive,
+                        ]}
+                      >
+                        Cadeira
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[
+                        styles.chegadaButton,
+                        formData.arrival_mode === 'ambulance' && styles.chegadaButtonActive,
+                      ]}
+                      onPress={() => setFormData({ ...formData, arrival_mode: 'ambulance' })}
+                    >
+                      <Text
+                        style={[
+                          styles.chegadaButtonText,
+                          formData.arrival_mode === 'ambulance' && styles.chegadaButtonTextActive,
+                        ]}
+                      >
+                        Ambulância
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+
+              <View style={styles.row}>
+                <View style={styles.halfInput}>
+                  <Text style={styles.label}>Nível de Dor (0-10)</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="0"
+                    keyboardType="numeric"
+                    value={formData.pain_level}
+                    onChangeText={text => setFormData({ ...formData, pain_level: text })}
+                  />
+                </View>
+
+                <View style={styles.halfInput}>
+                  <Text style={styles.label}>Doenças Crônicas</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="0"
+                    keyboardType="numeric"
+                    value={formData.chronic_disease_count}
+                    onChangeText={text => setFormData({ ...formData, chronic_disease_count: text })}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Visitas Recentes ER</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="0"
+                  keyboardType="numeric"
+                  value={formData.previous_er_visits}
+                  onChangeText={text => setFormData({ ...formData, previous_er_visits: text })}
+                />
+              </View>
+
               <TouchableOpacity style={[styles.button, isCarregando && styles.buttonDisabled]} onPress={handleClassificar} disabled={isCarregando}>
-                <Text style={styles.buttonText}>{isCarregando ? 'Processando IA...' : formData.id ? 'Salvar Alterações' : 'Analisar e Classificar'}</Text>
+                <Text style={styles.buttonText}>
+                  {isCarregando ? 'Processando IA...' : formData.id ? 'Salvar Alterações' : 'Salvar e Classificar com IA'}
+                </Text>
               </TouchableOpacity>
             </ScrollView>
           </KeyboardAvoidingView>
@@ -586,7 +757,7 @@ const styles = StyleSheet.create({
   fabText: { color: '#FFF', fontSize: 36, fontWeight: '300', marginTop: -2 },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', paddingVertical: 25 },
-  modalContent: { backgroundColor: '#FFF', borderRadius: 25, padding: 25, width: '90%', alignSelf: 'center', height: '52%' },
+  modalContent: { backgroundColor: '#FFF', borderRadius: 25, padding: 25, width: '90%', alignSelf: 'center', height: '80%' },
   modalContentSmall: { backgroundColor: '#FFF', borderRadius: 25, padding: 25, width: '90%', height: '40%', alignSelf: 'center' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 },
   modalTitle: { fontSize: 24, fontWeight: 'bold', color: '#111827' },
@@ -610,4 +781,28 @@ const styles = StyleSheet.create({
   button: { backgroundColor: '#168C8C', padding: 18, borderRadius: 12, alignItems: 'center', marginTop: 15 },
   buttonDisabled: { opacity: 0.7 },
   buttonText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
+
+  chegadaContainer: {
+    gap: 6,
+  },
+  chegadaButton: {
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  chegadaButtonActive: {
+    backgroundColor: '#168C8C',
+    borderColor: '#168C8C',
+  },
+  chegadaButtonText: {
+    color: '#374151',
+    fontWeight: '600',
+    fontSize: 13,
+  },
+  chegadaButtonTextActive: {
+    color: '#FFF',
+  },
 });
